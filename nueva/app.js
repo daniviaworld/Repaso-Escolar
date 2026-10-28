@@ -26,7 +26,13 @@ const estado = {
 };
 
 function alumnoActual() { return estado.alumnos.find(a => a.id === estado.actual) || null; }
-function guardaTodo() { almacen.guardar('alumnos', estado.alumnos); almacen.guardar('actual', estado.actual); }
+function guardaTodo() {
+  almacen.guardar('alumnos', estado.alumnos);
+  almacen.guardar('actual', estado.actual);
+  // El espejo para el panel de control. Va con freno de 8 segundos dentro,
+  // así que se puede llamar en cada respuesta sin saturar nada.
+  if (typeof sincronizaNube === 'function') sincronizaNube(alumnoActual());
+}
 
 /* Primera letra en mayúscula, como comoNombrePropio() en el ViewModel. */
 function comoNombrePropio(n) {
@@ -65,6 +71,7 @@ function pinta() {
   aplicaPiel();
   const pantallas = {
     perfiles: pintaPerfiles,
+    nuevo: pintaNuevo,
     principal: pintaPrincipal,
     temas: pintaTemas,
     quiz: pintaQuiz,
@@ -100,24 +107,87 @@ function pintaPerfiles() {
   animaDani(document.getElementById('dani-hola'), { animo: 'alegre' });
 }
 
+/* Alta de alumno: pantalla propia, como en la app. Antes esto se hacía con las
+   ventanitas del navegador y había que escribir el curso en clave ("p4"), que
+   para un padre o una maestra no significa nada. */
 function nuevoAlumno() {
-  const nombre = prompt('Nombre del alumno');
-  if (!nombre) return;
-  const curso = prompt('Curso (inf3, inf4, inf5, p1, p2, p3, p4, p5, p6)', 'p3');
-  if (!cursoPorId(curso)) { alert('Ese curso no existe'); return; }
+  estado.nuevo = { nombre: '', avatar: AVATARES[Math.floor(Math.random() * AVATARES.length)], curso: '' };
+  estado.pantalla = 'nuevo'; pinta();
+}
+
+function pintaNuevo() {
+  const n = estado.nuevo;
+  const avatares = AVATARES.map(v => `
+    <button onclick="eligeAvatar('${v}')" style="font-size:30px;line-height:1;padding:9px;cursor:pointer;
+            border-radius:16px;background:${n.avatar === v ? '#12B5E5' : 'var(--tarjeta)'};
+            border:2px solid ${n.avatar === v ? '#12B5E5' : 'transparent'}">${v}</button>`).join('');
+
+  const grupo = (titulo, cursos, color) => `
+    <div style="font-weight:900;font-size:12px;letter-spacing:.06em;color:var(--tinta-suave);
+                margin:14px 0 6px">${titulo}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      ${cursos.map(c => `<button onclick="eligeCurso('${c.id}')" style="cursor:pointer;font:inherit;
+          font-weight:800;font-size:14px;padding:13px 6px;border-radius:14px;
+          background:${n.curso === c.id ? color : 'var(--tarjeta)'};
+          color:${n.curso === c.id ? '#fff' : 'var(--tinta)'};
+          border:2px solid ${n.curso === c.id ? color : 'transparent'}">${c.nombre.replace('º Primaria', 'º Primaria').replace('Infantil ', '')}</button>`).join('')}
+    </div>`;
+
+  const listo = n.nombre.trim().length >= 2 && !!n.curso;
+
+  app().innerHTML = `
+    <div class="contenido">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <button class="btn-chico hueco" onclick="estado.pantalla='perfiles';pinta()">←</button>
+        <h1 style="margin:0;font-size:22px;font-weight:900">Nuevo alumno</h1>
+      </div>
+
+      <label style="font-weight:900;font-size:12px;letter-spacing:.06em;color:var(--tinta-suave)">NOMBRE</label>
+      <input id="campo-nombre" value="${escapaHtml(n.nombre)}" maxlength="20" autocomplete="off"
+             oninput="estado.nuevo.nombre=this.value;document.getElementById('btn-crear').disabled=!(this.value.trim().length>=2&&estado.nuevo.curso)"
+             placeholder="Por ejemplo: Daniela"
+             style="width:100%;box-sizing:border-box;margin-top:6px;padding:15px;font:inherit;font-size:19px;
+                    font-weight:700;border:2px solid #12B5E580;border-radius:16px;
+                    background:var(--tarjeta);color:var(--tinta)">
+
+      <div style="font-weight:900;font-size:12px;letter-spacing:.06em;color:var(--tinta-suave);
+                  margin:16px 0 6px">ELIGE UN DIBUJO</div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">${avatares}</div>
+
+      ${grupo('INFANTIL', CURSOS.filter(c => c.etapa === 'infantil'), '#3DDC97')}
+      ${grupo('PRIMARIA', CURSOS.filter(c => c.etapa === 'primaria'), '#12B5E5')}
+
+      <button id="btn-crear" ${listo ? '' : 'disabled'} onclick="creaAlumno()"
+              style="width:100%;margin-top:22px;padding:17px;border:none;border-radius:16px;
+                     background:#12B5E5;color:#fff;font:inherit;font-weight:800;font-size:17px;
+                     cursor:pointer">Empezar a repasar</button>
+      <style>#btn-crear:disabled{opacity:.35;cursor:default}</style>
+    </div>`;
+
+  const c = document.getElementById('campo-nombre');
+  if (c && !n.nombre) c.focus();
+}
+
+function eligeAvatar(v) { estado.nuevo.avatar = v; pinta(); }
+function eligeCurso(id) { estado.nuevo.curso = id; pinta(); }
+
+function creaAlumno() {
+  const n = estado.nuevo;
+  if (n.nombre.trim().length < 2 || !cursoPorId(n.curso)) return;
   const a = {
     id: 'p_' + Date.now().toString(36),
-    nombre: comoNombrePropio(nombre),
-    avatar: AVATARES[Math.floor(Math.random() * AVATARES.length)],
-    curso, estrellas: 0, estrellasTotal: 0, racha: 0,
-    stats: {}, historial: [],
+    nombre: comoNombrePropio(n.nombre.trim()),
+    avatar: n.avatar,
+    curso: n.curso, estrellas: 0, estrellasTotal: 0, racha: 0,
+    stats: {}, historial: [], fallos: [],
     daniColor: 'color_azul', daniGorro: '', daniGafas: false, comprados: []
   };
-  estado.alumnos.push(a); estado.actual = a.id; guardaTodo();
+  estado.alumnos.push(a); estado.actual = a.id;
+  olvidarRecientes(); guardaTodo();
   estado.pantalla = 'principal'; pinta();
 }
 
-function eligeAlumno(id) { estado.actual = id; guardaTodo(); estado.pantalla = 'principal'; pinta(); }
+function eligeAlumno(id) { estado.actual = id; olvidarRecientes(); guardaTodo(); estado.pantalla = 'principal'; pinta(); }
 
 /* ---------- Armazón con cabecera y pestañas ---------- */
 function marco(contenido) {
@@ -339,7 +409,7 @@ function pintaTemas() {
       <i style="width:${temas.length ? dominados * 100 / temas.length : 0}%"></i></div>
 
     ${casillas}
-    <p class="subtitulo">Todos los temas están abiertos desde el primer día: repasa el que te toque en clase.</p>`);
+    ${infantil ? '' : '<p class="subtitulo">Todos los temas están abiertos desde el primer día: repasa el que te toque en clase.</p>'}`);
 }
 
 /* ---------- Preguntas ---------- */
@@ -378,22 +448,45 @@ function pintaQuiz() {
   const m = materiasDe(curso).find(x => x.id === q.materia) || { color: '#12B5E5' };
   const letras = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-  const opciones = q.opciones.map((o, i) => {
+  // Hay preguntas de opciones (MC) y preguntas de escribir (INPUT). El motor de
+  // la app trae las dos, así que la web tiene que saber pintar las dos.
+  const esEscribir = q.tipo === 'INPUT' || !q.opciones.length;
+
+  const opciones = esEscribir ? '' : q.opciones.map((o, i) => {
     const elegida = s.bloqueada && s.dada === o;
     const buena = o === q.respuesta;
+    // Una opción que es solo un dibujito (🍎🍎🍎) se pinta grande en Infantil.
+    const soloDibujo = !/[a-zA-Z0-9áéíóúñÁÉÍÓÚÑ]/.test(o);
     let fondo = 'var(--tarjeta)', tinta = 'var(--tinta)', marca = letras[i];
     if (s.bloqueada && buena) { fondo = '#3DDC97'; tinta = '#fff'; marca = '✓'; }
     else if (elegida) { fondo = '#FF6B6B'; tinta = '#fff'; marca = '✗'; }
     else if (s.bloqueada) { fondo = 'var(--tarjeta)'; tinta = 'var(--tinta-suave)'; }
-    return `<button onclick="responde('${o.replace(/'/g, "\\'")}')" ${s.bloqueada ? 'disabled' : ''}
+    const cuerpo = infantil ? (soloDibujo ? 44 : 26) : (soloDibujo ? 26 : 16);
+    return `<button onclick="respondeOpcion(${i})" ${s.bloqueada ? 'disabled' : ''}
               style="background:${fondo};color:${tinta};border:${s.bloqueada ? 'none' : '1.5px solid ' + m.color + '59'};
                      border-radius:${infantil ? 22 : 18}px;padding:${infantil ? 16 : 12}px;cursor:pointer;
-                     font:inherit;font-weight:700;font-size:${infantil ? 26 : 16}px;min-height:${infantil ? 86 : 68}px;
+                     font:inherit;font-weight:700;font-size:${cuerpo}px;min-height:${infantil ? 86 : 68}px;
                      box-shadow:${s.bloqueada ? 'none' : '0 1px 4px rgba(0,0,0,.1)'}">
               ${infantil ? '' : `<div style="font-size:12px;font-weight:900;opacity:.75;margin-bottom:4px">${marca}</div>`}
-              ${o}
+              ${escapaHtml(o)}
             </button>`;
   }).join('');
+
+  // Caja de escribir: el niño teclea y pulsa Comprobar (o Enter).
+  const caja = !esEscribir ? '' : `
+    <div style="margin-top:18px">
+      <input id="caja-respuesta" inputmode="text" autocomplete="off" ${s.bloqueada ? 'disabled' : ''}
+             value="${s.bloqueada ? escapaHtml(s.dada || '') : ''}"
+             onkeydown="if(event.key==='Enter')respondeEscrito()"
+             placeholder="Escribe tu respuesta"
+             style="width:100%;box-sizing:border-box;padding:${infantil ? 20 : 15}px;font:inherit;
+                    font-size:${infantil ? 28 : 20}px;font-weight:700;text-align:center;
+                    border:2px solid ${s.bloqueada ? (s.acierto ? '#3DDC97' : '#FF6B6B') : m.color + '80'};
+                    border-radius:18px;background:var(--tarjeta);color:var(--tinta)">
+      ${s.bloqueada ? '' : `<button onclick="respondeEscrito()" style="width:100%;margin-top:12px;
+          padding:16px;border:none;border-radius:14px;background:${m.color};color:#fff;
+          font-weight:700;font-size:16px;cursor:pointer">Comprobar</button>`}
+    </div>`;
 
   const respuesta = !s.bloqueada ? '' : `
     <div style="display:flex;align-items:center;gap:10px;margin-top:14px">
@@ -403,7 +496,7 @@ function pintaQuiz() {
                     color:${s.acierto ? '#3DDC97' : '#FF6B6B'}">
           ${s.acierto ? (s.racha >= 3 ? '¡' + s.racha + ' seguidas! 🔥' : '¡Muy bien!') : 'Casi'}
         </div>
-        ${!s.acierto ? `<div style="font-weight:700;font-size:14px">La respuesta correcta era: ${q.respuesta}</div>` : ''}
+        ${!s.acierto ? `<div style="font-weight:700;font-size:14px">La respuesta correcta era: ${escapaHtml(q.respuesta)}</div>` : ''}
       </div>
     </div>
     ${(!infantil && q.explicacion) ? `<div style="background:var(--fondo);border-radius:14px;padding:12px;
@@ -422,6 +515,11 @@ function pintaQuiz() {
         <strong style="font-size:14px">${s.indice + 1}/${s.preguntas.length}</strong>
       </div>
 
+      ${q.lectura ? `<div style="background:var(--tarjeta);border-radius:var(--radio);padding:18px;
+          margin-bottom:12px;font-size:15px;line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,.08)">
+          <div style="font-weight:900;font-size:12px;letter-spacing:.06em;color:var(--tinta-suave);
+                      margin-bottom:8px">LEE EL TEXTO</div>${escapaHtml(q.lectura)}</div>` : ''}
+
       <div style="background:var(--tarjeta);border-radius:var(--radio);padding:22px;text-align:center;
                   box-shadow:0 2px 6px rgba(0,0,0,.12);border:var(--marco) solid var(--sun)">
         <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:10px">
@@ -429,13 +527,19 @@ function pintaQuiz() {
           <button onclick="leeEnAlto()" style="border:none;border-radius:50%;cursor:pointer;
                   background:${m.color}26;padding:${infantil ? 14 : 9}px;font-size:${infantil ? 30 : 17}px">🔈</button>
         </div>
-        <div style="font-size:${infantil ? 28 : 24}px;font-weight:700;line-height:1.25">${q.texto}</div>
+        <div style="font-size:${infantil ? 28 : 24}px;font-weight:700;line-height:1.25">${escapaHtml(q.texto)}</div>
         ${q.visual ? `<div style="font-size:${infantil ? 56 : 30}px;margin-top:12px">${q.visual}</div>` : ''}
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px">${opciones}</div>
+      ${esEscribir ? caja
+        : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px">${opciones}</div>`}
       ${respuesta}
     </div>`;
+
+  if (esEscribir && !s.bloqueada) {
+    const c = document.getElementById('caja-respuesta');
+    if (c) c.focus();
+  }
 
   if (s.bloqueada) {
     animaDani(document.getElementById('dani-quiz'),
@@ -446,19 +550,43 @@ function pintaQuiz() {
 function leeEnAlto() {
   const q = estado.sesion.preguntas[estado.sesion.indice];
   try {
-    const voz = new SpeechSynthesisUtterance(q.texto);
+    // Si la pregunta lleva texto de lectura, se lee también: si no, el niño
+    // que necesita el audio se queda sin la mitad del ejercicio.
+    const voz = new SpeechSynthesisUtterance(q.lectura ? q.lectura + '. ' + q.texto : q.texto);
     voz.lang = 'es-ES';
     speechSynthesis.cancel();
     speechSynthesis.speak(voz);
   } catch (e) { /* algunos navegadores no tienen voz; no pasa nada */ }
 }
 
-function responde(opcion) {
+/** Protege el HTML: las preguntas vienen del motor y pueden traer < > & " '. */
+function escapaHtml(t) {
+  return String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function respondeOpcion(i) {
+  const s = estado.sesion;
+  if (s.bloqueada) return;
+  const o = s.preguntas[s.indice].opciones[i];
+  responde(o, o === s.preguntas[s.indice].respuesta);
+}
+
+function respondeEscrito() {
+  const s = estado.sesion;
+  if (s.bloqueada) return;
+  const c = document.getElementById('caja-respuesta');
+  const escrito = c ? c.value.trim() : '';
+  if (!escrito) return;                       // vacío no cuenta como fallo
+  responde(escrito, respuestaEscritaVale(escrito, s.preguntas[s.indice].respuesta));
+}
+
+function responde(dada, acierto) {
   const s = estado.sesion;
   if (s.bloqueada) return;
   const q = s.preguntas[s.indice];
-  const acierto = opcion === q.respuesta;
-  s.bloqueada = true; s.dada = opcion; s.acierto = acierto;
+  s.bloqueada = true; s.dada = dada; s.acierto = acierto;
   s.racha = acierto ? s.racha + 1 : 0;
   if (acierto) s.aciertos++;
   registraRespuesta(alumnoActual(), q.materia, q.tema, acierto);
@@ -534,7 +662,8 @@ function pintaMarcador() {
   if (!s.cobrada) {
     s.cobrada = true;
     a.estrellas += ganadas; a.estrellasTotal += ganadas;
-    a.historial.unshift({ d: Date.now(), ok, n });
+    const mat = s.mezcla ? null : materiasDe(cursoPorId(a.curso)).find(x => x.id === s.materiaId);
+    a.historial.unshift({ d: Date.now(), s: mat ? mat.nombre : 'Repaso mezclado', ok, n });
     guardaTodo();
   }
 
