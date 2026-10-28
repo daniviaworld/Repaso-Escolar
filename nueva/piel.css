@@ -1,0 +1,259 @@
+/* ===================================================================
+   LAS PIELES, EN CSS.
+   Mismos valores que Piel.kt en la app: fondo, tinta, tarjeta, radio,
+   hueco, márgenes y tamaños de letra. Cambiar el aspecto de una etapa
+   es cambiar este bloque, igual que allí.
+   =================================================================== */
+
+:root {
+  /* Paleta compartida con Color.kt */
+  --navy: #0B2A4A;
+  --ink: #173A5E;
+  --sky: #E9F3FF;
+  --sky-hondo: #E1EDFA;
+  --cyan: #12B5E5;
+  --sun: #FFC93C;
+  --coral: #FF6B6B;
+  --mint: #3DDC97;
+  --lilac: #9B7BFF;
+  --peach: #FF9F68;
+  --grey: #6C7A8A;
+  --white: #FFFFFF;
+
+  --crema: #FDF4E3;
+  --crema-hueco: #F0E2C8;
+  --marron: #4A3B2A;
+
+  --noche-fondo: #0B1624;
+  --noche-tarjeta: #152238;
+  --noche-tinta: #E8F0FB;
+  --noche-crema: #231C14;
+  --noche-crema-tarjeta: #32271B;
+}
+
+/* ---- Piel de Primaria (la de por defecto) ---- */
+body[data-etapa="primaria"] {
+  --fondo: var(--sky-hondo);
+  --tinta: var(--navy);
+  --tinta-suave: rgba(11, 42, 74, 0.58);
+  --tarjeta: var(--white);
+  --marco: 0px;
+  --radio: 22px;
+  --hueco: 7px;
+  --margen: 18px;
+  --titulo-materia: 16px;
+  --letra-pequena: 12px;
+  --columnas: 2;
+}
+
+/* ---- Piel de Infantil ---- */
+body[data-etapa="infantil"] {
+  --fondo: var(--crema);
+  --tinta: var(--marron);
+  --tinta-suave: rgba(74, 59, 42, 0.6);
+  --tarjeta: var(--white);
+  --marco: 4px;
+  --radio: 26px;
+  --hueco: 10px;
+  --margen: 16px;
+  --titulo-materia: 22px;
+  --letra-pequena: 14px;
+  --columnas: 1;
+}
+
+/* ---- Modo oscuro, encima de la piel que toque ---- */
+body[data-oscuro="si"][data-etapa="primaria"] {
+  --fondo: var(--noche-fondo);
+  --tinta: var(--noche-tinta);
+  --tinta-suave: rgba(232, 240, 251, 0.6);
+  --tarjeta: var(--noche-tarjeta);
+}
+body[data-oscuro="si"][data-etapa="infantil"] {
+  --fondo: var(--noche-crema);
+  --tinta: #F2E6D4;
+  --tinta-suave: rgba(242, 230, 212, 0.62);
+  --tarjeta: var(--noche-crema-tarjeta);
+}
+
+/* =================================================================== */
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--fondo);
+  color: var(--tinta);
+  transition: background .2s ease;
+}
+
+.app {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--fondo);
+}
+
+/* ---- Cabecera fija ---- */
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--fondo);
+}
+.cabecera .logo {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--cyan);
+  display: grid; place-items: center;
+  font-size: 20px;
+}
+body[data-etapa="infantil"] .cabecera .logo { width: 42px; height: 42px; }
+.cabecera .marca { flex: 1; }
+.cabecera .marca b { display: block; font-size: 15px; font-weight: 900; letter-spacing: .2px; }
+body[data-etapa="infantil"] .cabecera .marca b { font-size: 17px; }
+.cabecera .marca small { font-size: 9px; font-weight: 700; color: var(--tinta-suave); letter-spacing: .5px; }
+body[data-etapa="infantil"] .cabecera .marca small { display: none; }
+
+.pastilla {
+  background: var(--tarjeta);
+  border-radius: 50px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+
+/* ---- Contenido ---- */
+.contenido { flex: 1; padding: var(--margen); overflow-y: auto; }
+
+.saludo {
+  background: var(--tarjeta);
+  border-radius: var(--radio);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.10);
+  border: var(--marco) solid var(--sun);
+}
+.saludo .avatar {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(255,201,60,.28);
+  display: grid; place-items: center; font-size: 32px;
+}
+.saludo h1 { margin: 0; font-size: 20px; font-weight: 700; }
+body[data-etapa="infantil"] .saludo h1 { font-size: 22px; }
+.saludo .curso { font-size: var(--letra-pequena); font-weight: 700; color: var(--tinta-suave); }
+.saludo .botones { display: flex; flex-direction: column; gap: 6px; }
+.btn-chico {
+  border: none; border-radius: 14px; padding: 8px 14px;
+  font-weight: 700; font-size: 12px; cursor: pointer;
+  background: var(--sun); color: var(--navy);
+}
+.btn-chico.hueco { background: var(--tarjeta); color: var(--tinta); border: 2px solid rgba(11,42,74,.2); }
+
+.titulo-seccion { font-size: 22px; font-weight: 900; margin: 0; }
+.subtitulo { font-size: var(--letra-pequena); color: var(--tinta-suave); margin: 2px 0 10px; }
+
+/* ---- Los cuadernos ---- */
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(var(--columnas), 1fr);
+  gap: calc(var(--hueco) * 2);
+}
+
+.cuaderno {
+  display: flex;
+  height: 152px;
+  border-radius: 6px var(--radio) var(--radio) 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,.13);
+  background: var(--papel);
+  cursor: pointer;
+  border: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.cuaderno .lomo {
+  width: 20px;
+  background: var(--color);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px;
+}
+.cuaderno .anilla {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(255,255,255,.8);
+}
+.cuaderno .hojas { flex: 1; padding: 12px; display: flex; flex-direction: column; }
+.cuaderno .fila { display: flex; align-items: center; }
+.cuaderno .icono { font-size: 26px; }
+.cuaderno .pct {
+  margin-left: auto; background: var(--color); color: #fff;
+  border-radius: 50px; padding: 3px 9px; font-size: 13px; font-weight: 900;
+}
+.cuaderno h3 { margin: 8px 0 0; font-size: var(--titulo-materia); font-weight: 900; line-height: 1.15; }
+.cuaderno .hechas { font-size: var(--letra-pequena); color: var(--tinta-suave); margin-top: auto; }
+.barra { height: 8px; border-radius: 50px; background: var(--pista); margin-top: 6px; overflow: hidden; }
+.barra i { display: block; height: 100%; border-radius: 50px; background: var(--color); }
+
+/* ---- Tarjeta de Infantil: una fila, icono enorme ---- */
+.tarjeta-infantil {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--tarjeta);
+  border: var(--marco) solid var(--color);
+  border-radius: var(--radio);
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.13);
+  cursor: pointer; font: inherit; color: inherit; text-align: left;
+  width: 100%;
+}
+.tarjeta-infantil .cuadro {
+  width: 72px; height: 72px; border-radius: 22px;
+  background: var(--suave);
+  display: grid; place-items: center; font-size: 40px;
+  flex: none;
+}
+.tarjeta-infantil .nombre { flex: 1; font-size: var(--titulo-materia); font-weight: 900; }
+.tarjeta-infantil .flecha { font-size: 26px; color: var(--color); }
+
+/* ---- Reto del día ---- */
+.reto {
+  background: var(--navy); color: #fff;
+  border-radius: var(--radio);
+  padding: 18px;
+  margin-top: 16px;
+}
+body[data-etapa="infantil"] .reto {
+  background: var(--tarjeta); color: var(--tinta);
+  border: var(--marco) solid var(--sun);
+}
+.reto h3 { margin: 0; font-size: 20px; font-weight: 900; }
+.reto p { margin: 4px 0 12px; font-size: var(--letra-pequena); opacity: .75; }
+.reto .tandas { display: flex; gap: 8px; }
+.reto .tandas button {
+  background: var(--sun); color: var(--navy); border: none;
+  border-radius: 12px; padding: 10px 16px; font-weight: 700; font-size: 16px;
+  cursor: pointer;
+}
+
+/* ---- Barra inferior ---- */
+.barra-abajo {
+  display: flex;
+  background: var(--tarjeta);
+  padding: 8px 0 10px;
+  box-shadow: 0 -1px 6px rgba(0,0,0,.08);
+}
+.barra-abajo button {
+  flex: 1; border: none; background: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 11px; color: var(--tinta-suave); font-weight: 600;
+}
+.barra-abajo button .ico { font-size: 20px; }
+.barra-abajo button[aria-current="page"] { color: var(--cyan); }
+.barra-abajo button[aria-current="page"] .ico {
+  background: rgba(18,181,229,.15); border-radius: 50px; padding: 2px 16px;
+}
