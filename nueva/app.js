@@ -19,6 +19,12 @@ const estado = {
   alumnos: almacen.leer('alumnos', []),
   actual: almacen.leer('actual', null),
   oscuro: almacen.leer('oscuro', false),
+  // Estos tres se guardaban (o ni eso) pero no se leían al arrancar: el interruptor
+  // de "Voz automática" aparecía apagado cada vez que se recargaba la página.
+  voz: almacen.leer('voz', false),
+  sonido: almacen.leer('sonido', true),
+  vibrar: almacen.leer('vibrar', true),
+  pin: almacen.leer('pin', null),
   pantalla: 'perfiles',
   pestana: 'cuadernos',
   materia: null,
@@ -63,7 +69,13 @@ const app = () => document.getElementById('app');
 function aplicaPiel() {
   const a = alumnoActual();
   const curso = a ? cursoPorId(a.curso) : CURSOS[3];
-  document.body.dataset.etapa = curso.etapa;
+  // El alta y el cambio de curso van SIEMPRE con la piel de Infantil: son las dos
+  // pantallas que ve un adulto con el niño al lado, antes de que haya curso elegido,
+  // y la crema con el marco gordo se entiende a cualquier edad. La piel de Primaria
+  // empieza en cuanto se entra a repasar.
+  const etapa = (estado.pantalla === 'nuevo' || estado.pantalla === 'curso')
+    ? 'infantil' : curso.etapa;
+  document.body.dataset.etapa = etapa;
   document.body.dataset.oscuro = estado.oscuro ? 'si' : 'no';
 }
 
@@ -72,6 +84,7 @@ function pinta() {
   const pantallas = {
     perfiles: pintaPerfiles,
     nuevo: pintaNuevo,
+    curso: pintaCurso,
     principal: pintaPrincipal,
     temas: pintaTemas,
     quiz: pintaQuiz,
@@ -115,55 +128,136 @@ function nuevoAlumno() {
   estado.pantalla = 'nuevo'; pinta();
 }
 
+/* ===================================================================
+   EL SELECTOR DE CURSO
+
+   Se usa en los dos sitios donde hay que elegir curso: al dar de alta a
+   un alumno y al cambiarlo de curso. Está escrito una sola vez a
+   propósito: si estuviera dos veces, acabarían siendo distintos.
+
+   No se enseñan códigos ("p4") ni nombres sueltos: se enseña el curso
+   como lo diría una madre —"4º de Primaria, 9-10 años"— porque quien
+   elige aquí casi nunca es el niño.
+   =================================================================== */
+
+/** La edad típica del curso, sacada del nivel. Ayuda a quien duda entre dos. */
+function edadDe(curso) {
+  if (curso.etapa === 'infantil') {
+    const a = 3 + Math.round(curso.lvl * 2);      // 0 -> 3, 0.5 -> 4, 1 -> 5
+    return a + '-' + (a + 1) + ' años';
+  }
+  const a = 4 + Math.round(curso.lvl);            // 2 -> 6, 7 -> 11
+  return a + '-' + (a + 1) + ' años';
+}
+
+/**
+ * Dibuja los nueve cursos en tarjetas.
+ * @param elegido  id del curso marcado ahora mismo ('' si ninguno)
+ * @param alPulsar nombre de la función JS que recibe el id, p. ej. 'eligeCurso'
+ */
+function selectorDeCurso(elegido, alPulsar) {
+  const tarjeta = (c, color) => {
+    const marcada = elegido === c.id;
+    const grande = c.etapa === 'infantil'
+      ? c.nombre.replace('Infantil ', '').replace(' años', '')
+      : c.nombre.replace(' Primaria', '');
+    // En Infantil el curso ES la edad, así que repetir "3" y "3-4 años" sobra:
+    // se pone "3 / años / Infantil", que es como lo dice todo el mundo.
+    const bajo = c.etapa === 'infantil' ? 'años' : 'Primaria';
+    const pie = c.etapa === 'infantil' ? 'Infantil' : edadDe(c);
+    return `
+      <button onclick="${alPulsar}('${c.id}')" style="position:relative;cursor:pointer;font:inherit;
+              padding:16px 6px 13px;border-radius:22px;text-align:center;
+              background:${marcada ? color : '#fff'};
+              color:${marcada ? '#fff' : 'var(--tinta)'};
+              border:4px solid ${marcada ? color : color + '33'};
+              box-shadow:${marcada ? '0 6px 16px ' + color + '66' : '0 2px 0 ' + color + '22'};
+              transform:${marcada ? 'translateY(-2px)' : 'none'};transition:transform .12s">
+        ${marcada ? `<span style="position:absolute;top:-9px;right:-7px;width:26px;height:26px;
+             border-radius:50%;background:#fff;color:${color};border:3px solid ${color};
+             display:grid;place-items:center;font-size:13px;font-weight:900">✓</span>` : ''}
+        <span style="display:block;font-size:30px;font-weight:900;line-height:1.05">${grande}</span>
+        <span style="display:block;font-size:12px;font-weight:800;letter-spacing:.04em;
+                     opacity:${marcada ? .95 : .7};margin-top:3px">${bajo}</span>
+        <span style="display:block;font-size:11px;font-weight:700;
+                     opacity:${marcada ? .85 : .5};margin-top:3px">${pie}</span>
+      </button>`;
+  };
+
+  const bloque = (titulo, ico, cursos, color) => `
+    <div style="display:flex;align-items:center;gap:9px;margin:20px 0 10px">
+      <span style="width:34px;height:34px;border-radius:12px;background:${color}2E;display:grid;
+                   place-items:center;font-size:19px">${ico}</span>
+      <span style="font-weight:900;font-size:15px;letter-spacing:.03em;color:var(--tinta)">${titulo}</span>
+      <span style="flex:1;height:3px;border-radius:3px;background:${color}33"></span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px">
+      ${cursos.map(c => tarjeta(c, color)).join('')}
+    </div>`;
+
+  return bloque('Infantil', '🧸', CURSOS.filter(c => c.etapa === 'infantil'), '#3DDC97') +
+         bloque('Primaria', '🎒', CURSOS.filter(c => c.etapa === 'primaria'), '#12B5E5');
+}
+
+/**
+ * La cabecera de las dos pantallas de curso: Dani, un título grande y una frase.
+ *
+ * Dani sale aquí porque es la primera vez que el niño lo ve: cuando llegue a las
+ * preguntas ya lo conoce, y la recompensa de que salga celebrando vale más.
+ */
+function cabeceraConDani(titulo, frase, atras) {
+  return `
+    <div style="position:relative;margin:-6px -4px 4px;padding:18px 16px 16px;border-radius:0 0 30px 30px;
+                background:linear-gradient(180deg,#FFF9EC 0%,rgba(255,249,236,0) 100%)">
+      <button class="btn-chico hueco" onclick="${atras}"
+              style="position:absolute;top:10px;left:6px">←</button>
+      <div style="display:flex;flex-direction:column;align-items:center;text-align:center">
+        <canvas id="dani-cabecera" style="width:104px;height:104px"></canvas>
+        <h1 style="margin:4px 0 2px;font-size:25px;font-weight:900;color:var(--tinta)">${titulo}</h1>
+        <p style="margin:0;font-size:14px;font-weight:700;color:var(--tinta-suave)">${frase}</p>
+      </div>
+    </div>`;
+}
+
 function pintaNuevo() {
   const n = estado.nuevo;
   const avatares = AVATARES.map(v => `
-    <button onclick="eligeAvatar('${v}')" style="font-size:30px;line-height:1;padding:9px;cursor:pointer;
-            border-radius:16px;background:${n.avatar === v ? '#12B5E5' : 'var(--tarjeta)'};
-            border:2px solid ${n.avatar === v ? '#12B5E5' : 'transparent'}">${v}</button>`).join('');
-
-  const grupo = (titulo, cursos, color) => `
-    <div style="font-weight:900;font-size:12px;letter-spacing:.06em;color:var(--tinta-suave);
-                margin:14px 0 6px">${titulo}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-      ${cursos.map(c => `<button onclick="eligeCurso('${c.id}')" style="cursor:pointer;font:inherit;
-          font-weight:800;font-size:14px;padding:13px 6px;border-radius:14px;
-          background:${n.curso === c.id ? color : 'var(--tarjeta)'};
-          color:${n.curso === c.id ? '#fff' : 'var(--tinta)'};
-          border:2px solid ${n.curso === c.id ? color : 'transparent'}">${c.nombre.replace('º Primaria', 'º Primaria').replace('Infantil ', '')}</button>`).join('')}
-    </div>`;
+    <button onclick="eligeAvatar('${v}')" style="box-sizing:border-box;width:100%;font-size:32px;
+            line-height:1;padding:11px 0;cursor:pointer;border-radius:20px;background:#fff;
+            transition:transform .12s;transform:${n.avatar === v ? 'scale(1.06)' : 'none'};
+            border:4px solid ${n.avatar === v ? '#FFC93C' : 'rgba(74,59,42,.10)'};
+            box-shadow:${n.avatar === v ? '0 4px 12px rgba(255,201,60,.5)' : 'none'}">${v}</button>`).join('');
 
   const listo = n.nombre.trim().length >= 2 && !!n.curso;
+  const rotulo = t => `<div style="font-weight:900;font-size:14px;color:var(--tinta);margin:20px 0 8px">${t}</div>`;
 
   app().innerHTML = `
     <div class="contenido">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-        <button class="btn-chico hueco" onclick="estado.pantalla='perfiles';pinta()">←</button>
-        <h1 style="margin:0;font-size:22px;font-weight:900">Nuevo alumno</h1>
-      </div>
+      ${cabeceraConDani('Nuevo alumno', '¿Quién va a repasar?', "estado.pantalla='perfiles';pinta()")}
 
-      <label style="font-weight:900;font-size:12px;letter-spacing:.06em;color:var(--tinta-suave)">NOMBRE</label>
+      ${rotulo('¿Cómo te llamas?')}
       <input id="campo-nombre" value="${escapaHtml(n.nombre)}" maxlength="20" autocomplete="off"
              oninput="estado.nuevo.nombre=this.value;document.getElementById('btn-crear').disabled=!(this.value.trim().length>=2&&estado.nuevo.curso)"
-             placeholder="Por ejemplo: Daniela"
-             style="width:100%;box-sizing:border-box;margin-top:6px;padding:15px;font:inherit;font-size:19px;
-                    font-weight:700;border:2px solid #12B5E580;border-radius:16px;
-                    background:var(--tarjeta);color:var(--tinta)">
+             placeholder="Escribe tu nombre"
+             style="width:100%;box-sizing:border-box;padding:16px;font:inherit;font-size:21px;
+                    font-weight:800;text-align:center;border:4px solid #12B5E54D;border-radius:22px;
+                    background:#fff;color:var(--tinta)">
 
-      <div style="font-weight:900;font-size:12px;letter-spacing:.06em;color:var(--tinta-suave);
-                  margin:16px 0 6px">ELIGE UN DIBUJO</div>
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">${avatares}</div>
+      ${rotulo('Elige tu dibujo')}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px">${avatares}</div>
 
-      ${grupo('INFANTIL', CURSOS.filter(c => c.etapa === 'infantil'), '#3DDC97')}
-      ${grupo('PRIMARIA', CURSOS.filter(c => c.etapa === 'primaria'), '#12B5E5')}
+      ${rotulo('¿En qué curso estás?')}
+      ${selectorDeCurso(n.curso, 'eligeCurso')}
 
       <button id="btn-crear" ${listo ? '' : 'disabled'} onclick="creaAlumno()"
-              style="width:100%;margin-top:22px;padding:17px;border:none;border-radius:16px;
-                     background:#12B5E5;color:#fff;font:inherit;font-weight:800;font-size:17px;
-                     cursor:pointer">Empezar a repasar</button>
-      <style>#btn-crear:disabled{opacity:.35;cursor:default}</style>
+              style="width:100%;margin-top:26px;padding:19px;border:none;border-radius:24px;
+                     background:#3DDC97;color:#fff;font:inherit;font-weight:900;font-size:19px;
+                     cursor:pointer;box-shadow:0 5px 0 #2BB97C">¡Empezar a repasar!</button>
+      <div style="height:26px"></div>
+      <style>#btn-crear:disabled{opacity:.4;cursor:default;box-shadow:none}</style>
     </div>`;
 
+  animaDani(document.getElementById('dani-cabecera'), { animo: 'alegre' });
   const c = document.getElementById('campo-nombre');
   if (c && !n.nombre) c.focus();
 }
@@ -315,21 +409,46 @@ function aspectoDani(a) {
   return { cuerpo: colorDaniDe(a.daniColor), gorro: gorroDe(a.daniGorro), gafas: !!a.daniGafas };
 }
 
-function cambiaCurso() {
-  const lista = CURSOS.map(c => c.id).join(', ');
-  const nuevo = prompt('Curso (' + lista + ')', alumnoActual().curso);
-  if (!nuevo || !cursoPorId(nuevo)) return;
+/* Cambiar de curso tenía la misma chapuza que el alta: una ventanita del navegador
+   pidiendo que escribieras "p4". Ahora es una pantalla con los cursos en botones. */
+function cambiaCurso() { estado.pantalla = 'curso'; pinta(); }
+
+function pintaCurso() {
   const a = alumnoActual();
-  // Mismo mecanismo que Profile.cambiarDeCurso: el progreso de cada curso
-  // se guarda aparte, para que lo de 5º no aparezca en 3º.
-  a.porCurso = a.porCurso || {};
-  a.porCurso[a.curso] = { stats: a.stats, historial: a.historial };
-  const caja = a.porCurso[nuevo];
-  a.stats = caja ? caja.stats : {};
-  a.historial = caja ? caja.historial : [];
-  delete a.porCurso[nuevo];
-  a.curso = nuevo;
-  guardaTodo(); pinta();
+  app().innerHTML = `
+    <div class="contenido">
+      ${cabeceraConDani('Cambiar de curso',
+         escapaHtml(a.nombre) + ' está ahora en ' + cursoPorId(a.curso).nombre,
+         "estado.pantalla='principal';pinta()")}
+      ${selectorDeCurso(a.curso, 'eligeCursoDeAlumno')}
+      <div style="background:#fff;border:4px solid rgba(74,59,42,.10);border-radius:22px;padding:16px;
+                  margin-top:22px;font-size:13px;line-height:1.55;color:var(--tinta-suave)">
+        🔒 El progreso de cada curso se guarda por separado: si vuelve al curso anterior,
+        se encontrará sus estrellas y sus temas tal y como los dejó.
+      </div>
+      <div style="height:26px"></div>
+    </div>`;
+
+  animaDani(document.getElementById('dani-cabecera'), { animo: 'tranquilo', ...aspectoDani(a) });
+}
+
+function eligeCursoDeAlumno(nuevo) {
+  const a = alumnoActual();
+  if (!a || !cursoPorId(nuevo)) return;
+  if (nuevo !== a.curso) {
+    // Mismo mecanismo que Profile.cambiarDeCurso: el progreso de cada curso
+    // se guarda aparte, para que lo de 5º no aparezca en 3º.
+    a.porCurso = a.porCurso || {};
+    a.porCurso[a.curso] = { stats: a.stats, historial: a.historial };
+    const caja = a.porCurso[nuevo];
+    a.stats = caja ? caja.stats : {};
+    a.historial = caja ? caja.historial : [];
+    delete a.porCurso[nuevo];
+    a.curso = nuevo;
+    olvidarRecientes();   // las preguntas vistas en el otro curso no cuentan aquí
+    guardaTodo();
+  }
+  estado.pantalla = 'principal'; pinta();
 }
 
 /* ---------- El camino de temas ---------- */
@@ -439,6 +558,8 @@ function empiezaMezcla(n) {
   estado.pantalla = 'quiz'; pinta();
 }
 
+let ultimaLeidaEnAlto = null;
+
 function pintaQuiz() {
   const a = alumnoActual();
   const s = estado.sesion;
@@ -508,7 +629,7 @@ function pintaQuiz() {
   app().innerHTML = `
     <div class="contenido">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-        <button class="btn-chico hueco" onclick="estado.pantalla='principal';pinta()">✕</button>
+        <button class="btn-chico hueco" onclick="callaVoz();estado.pantalla='principal';pinta()">✕</button>
         <div class="barra" style="flex:1;--color:${m.color};--pista:${m.color}33;height:10px">
           <i style="width:${s.indice * 100 / s.preguntas.length}%"></i></div>
         ${s.racha >= 2 ? `<span class="pastilla" style="background:#FFC93C40">🔥 ${s.racha}</span>` : ''}
@@ -526,6 +647,9 @@ function pintaQuiz() {
           ${q.etiqueta && !infantil ? `<span class="pastilla" style="background:var(--fondo);font-size:12px">${q.etiqueta}</span>` : ''}
           <button onclick="leeEnAlto()" style="border:none;border-radius:50%;cursor:pointer;
                   background:${m.color}26;padding:${infantil ? 14 : 9}px;font-size:${infantil ? 30 : 17}px">🔈</button>
+          ${(q.audio && q.audio.length) ? `<button onclick="tocaPregunta(estado.sesion.preguntas[estado.sesion.indice])"
+                  style="border:none;border-radius:50%;cursor:pointer;background:#12B5E526;
+                  padding:${infantil ? 14 : 8}px;font-size:${infantil ? 30 : 16}px">🔊</button>` : ''}
         </div>
         <div style="font-size:${infantil ? 28 : 24}px;font-weight:700;line-height:1.25">${escapaHtml(q.texto)}</div>
         ${q.visual ? `<div style="font-size:${infantil ? 56 : 30}px;margin-top:12px">${q.visual}</div>` : ''}
@@ -541,22 +665,33 @@ function pintaQuiz() {
     if (c) c.focus();
   }
 
+  // VOZ AUTOMÁTICA. El interruptor existía en la Zona Familias desde el primer día...
+  // y no hacía absolutamente nada: se guardaba el ajuste y ahí se quedaba. Ahora lee
+  // la pregunta sola al aparecer, que es lo que un padre espera al encenderlo.
+  // La marca evita que se repita la lectura cada vez que se repinta la pantalla.
+  const marcaLectura = s.preguntas.length + '|' + s.indice;
+  if (ultimaLeidaEnAlto !== marcaLectura && !s.bloqueada) {
+    ultimaLeidaEnAlto = marcaLectura;
+    // Las preguntas de Música suenan solas al aparecer, como en la app: si no, el
+    // niño ve "¿cuántos sonidos has oído?" sin haber oído nada.
+    if (q.audio && q.audio.length) tocaPregunta(q);
+    else if (estado.voz) leeTexto(textoDeLaPregunta(q));
+  }
+
   if (s.bloqueada) {
     animaDani(document.getElementById('dani-quiz'),
       { animo: s.acierto ? 'alegre' : 'pensativo', ...aspectoDani(a) });
   }
 }
 
+function textoDeLaPregunta(q) {
+  // Si la pregunta lleva texto de lectura, se lee también: si no, el niño
+  // que necesita el audio se queda sin la mitad del ejercicio.
+  return q.lectura ? q.lectura + '. ' + q.texto : q.texto;
+}
+
 function leeEnAlto() {
-  const q = estado.sesion.preguntas[estado.sesion.indice];
-  try {
-    // Si la pregunta lleva texto de lectura, se lee también: si no, el niño
-    // que necesita el audio se queda sin la mitad del ejercicio.
-    const voz = new SpeechSynthesisUtterance(q.lectura ? q.lectura + '. ' + q.texto : q.texto);
-    voz.lang = 'es-ES';
-    speechSynthesis.cancel();
-    speechSynthesis.speak(voz);
-  } catch (e) { /* algunos navegadores no tienen voz; no pasa nada */ }
+  leeTexto(textoDeLaPregunta(estado.sesion.preguntas[estado.sesion.indice]));
 }
 
 /** Protege el HTML: las preguntas vienen del motor y pueden traer < > & " '. */
@@ -579,7 +714,8 @@ function respondeEscrito() {
   const c = document.getElementById('caja-respuesta');
   const escrito = c ? c.value.trim() : '';
   if (!escrito) return;                       // vacío no cuenta como fallo
-  responde(escrito, respuestaEscritaVale(escrito, s.preguntas[s.indice].respuesta));
+  const pregunta = s.preguntas[s.indice];
+  responde(escrito, respuestaEscritaVale(escrito, pregunta.respuesta, pregunta));
 }
 
 function responde(dada, acierto) {
@@ -589,6 +725,7 @@ function responde(dada, acierto) {
   s.bloqueada = true; s.dada = dada; s.acierto = acierto;
   s.racha = acierto ? s.racha + 1 : 0;
   if (acierto) s.aciertos++;
+  pita(acierto); vibra(acierto);
   registraRespuesta(alumnoActual(), q.materia, q.tema, acierto);
   apuntaFallo(alumnoActual(), q, acierto, !!s.esRepasoFallos);
   guardaTodo();
@@ -664,6 +801,9 @@ function pintaMarcador() {
     a.estrellas += ganadas; a.estrellasTotal += ganadas;
     const mat = s.mezcla ? null : materiasDe(cursoPorId(a.curso)).find(x => x.id === s.materiaId);
     a.historial.unshift({ d: Date.now(), s: mat ? mat.nombre : 'Repaso mezclado', ok, n });
+    // Las últimas 30, igual que la app. Sin tope, el historial crece para siempre
+    // dentro del navegador y acaba ocupando más que todo lo demás junto.
+    while (a.historial.length > 30) a.historial.pop();
     guardaTodo();
   }
 

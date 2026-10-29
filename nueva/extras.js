@@ -313,14 +313,18 @@ function pintaFamilias() {
   const materias = materiasDe(curso);
   const temas = materias.reduce((s, m) => s + temasDe(m.id).length, 0);
 
-  const flojos = [];
+  // De peor a mejor y como mucho cinco, igual que weakTopics() en la app: un alumno
+  // flojo llenaba esto de etiquetas rojas y el padre no sabía por dónde empezar.
+  const flojosTodos = [];
   materias.forEach(m => {
     const st = a.stats[m.id]; if (!st) return;
     Object.entries(st.temas).forEach(([t, v]) => {
+      const pct = Math.round(v.ok * 100 / v.hechas);
       if (v.hechas >= 4 && v.ok * 100 / v.hechas < 60)
-        flojos.push(`${m.nombre} · ${t} (${Math.round(v.ok * 100 / v.hechas)}%)`);
+        flojosTodos.push({ pct, texto: `${m.nombre} · ${t} (${pct}%)` });
     });
   });
+  const flojos = flojosTodos.sort((x, y) => x.pct - y.pct).slice(0, 5).map(x => x.texto);
 
   const fila = (ico, color, titulo, detalle, accion) => `
     <button onclick="${accion}" style="width:100%;display:flex;align-items:center;gap:12px;background:none;
@@ -388,6 +392,8 @@ function pintaFamilias() {
     <div style="background:var(--tarjeta);border-radius:20px;padding:4px 0;margin-bottom:20px;
                 box-shadow:0 1px 4px rgba(0,0,0,.1)">
       ${interruptor('🌙', '#0B2A4A', 'Modo oscuro', estado.oscuro, 'cambiaOscuro()')}
+      ${interruptor('🔊', '#12B5E5', 'Sonido', estado.sonido !== false, 'cambiaSonido()')}
+      ${interruptor('📳', '#3DDC97', 'Vibración', estado.vibrar !== false, 'cambiaVibrar()')}
       ${interruptor('🗣️', '#9B7BFF', 'Voz automática', !!estado.voz, 'cambiaVoz()')}
     </div>
 
@@ -401,10 +407,14 @@ function pintaFamilias() {
     <h3 style="font-size:17px;font-weight:900;margin:0 0 8px">Curso y datos</h3>
     <div style="background:var(--tarjeta);border-radius:20px;padding:4px 0;
                 box-shadow:0 1px 4px rgba(0,0,0,.1)">
-      ${fila('🎓', '#12B5E5', 'Cambiar de curso', curso.nombre, 'cambiaCurso()')}
+      ${fila('🎓', '#12B5E5', 'Cambiar de curso', curso.nombre, 'conPin(cambiaCurso)')}
+      ${fila(estado.pin ? '🔒' : '🔓', '#FFC93C',
+             estado.pin ? 'PIN familiar activo' : 'Crear PIN familiar',
+             estado.pin ? 'Tocar para quitarlo' : 'Protege cambiar de curso y borrar datos',
+             'tocaPin()')}
     </div>
 
-    <button onclick="borraTodo()" style="width:100%;margin-top:12px;background:#FF6B6B1A;border:none;
+    <button onclick="conPin(borraTodo)" style="width:100%;margin-top:12px;background:#FF6B6B1A;border:none;
             border-radius:18px;padding:14px;cursor:pointer;font:inherit;text-align:left;display:flex;gap:12px">
       <span style="font-size:18px">🗑️</span>
       <span><strong style="display:block;color:#FF6B6B;font-size:14px">Borrar todo</strong>
@@ -418,7 +428,38 @@ function pintaFamilias() {
 }
 
 function cambiaOscuro() { estado.oscuro = !estado.oscuro; almacen.guardar('oscuro', estado.oscuro); pinta(); }
-function cambiaVoz() { estado.voz = !estado.voz; almacen.guardar('voz', estado.voz); pinta(); }
+function cambiaVoz() { estado.voz = !estado.voz; almacen.guardar('voz', estado.voz); if (!estado.voz) callaVoz(); pinta(); }
+function cambiaSonido() { estado.sonido = estado.sonido === false; almacen.guardar('sonido', estado.sonido); pinta(); }
+function cambiaVibrar() { estado.vibrar = estado.vibrar === false; almacen.guardar('vibrar', estado.vibrar); pinta(); }
+
+/* ---------- PIN familiar (igual que en la app) ----------
+   Protege las dos cosas que un niño no debería poder hacer solo: cambiarse de curso
+   (se llevaría por delante el progreso que ve el colegio) y borrar los datos.
+   No protege la Zona Familias entera a propósito: el informe y el diploma los puede
+   mirar el niño, y pedir un PIN para todo acaba en que nadie lo pone.
+   Cuatro cifras y se guarda en este navegador: es un pestillo, no una caja fuerte. */
+function tocaPin() {
+  if (estado.pin) {
+    const p = prompt('Escribe el PIN para quitarlo');
+    if (p === null) return;
+    if (p !== estado.pin) { alert('El PIN no es correcto.'); return; }
+    estado.pin = null; almacen.guardar('pin', null); pinta();
+    return;
+  }
+  const nuevo = prompt('Elige un PIN de 4 cifras');
+  if (nuevo === null) return;
+  if (!/^\d{4}$/.test(nuevo)) { alert('El PIN tiene que ser de 4 cifras.'); return; }
+  estado.pin = nuevo; almacen.guardar('pin', nuevo); pinta();
+}
+
+/** Pide el PIN, si lo hay, antes de hacer algo delicado. */
+function conPin(accion) {
+  if (!estado.pin) return accion();
+  const p = prompt('PIN familiar');
+  if (p === null) return;
+  if (p !== estado.pin) { alert('El PIN no es correcto.'); return; }
+  accion();
+}
 
 function borraTodo() {
   if (!confirm('¿Borrar todos los alumnos y su progreso de este navegador? No se puede deshacer.')) return;

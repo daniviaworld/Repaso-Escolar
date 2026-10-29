@@ -35,7 +35,15 @@ function generaPregunta(materiaId, cursoId, tema) {
     explicacion: q.explicacion,
     lectura: q.lectura,                 // texto de comprensión lectora, si lo hay
     materia: q.materia,
-    tema: q.tema
+    tema: q.tema,
+    // Cómo hay que corregir si es de escribir, tal y como lo decide el motor.
+    // Se dejan tal cual (sin convertir a true/false) a propósito: si el motor es
+    // anterior a este cambio no las manda, y "no las manda" tiene que poder
+    // distinguirse de "dice que no". Ver respuestaEscritaVale.
+    ignoraMayusculas: q.ignoraMayusculas,
+    esDecimal: q.esDecimal,
+    // Notas a tocar en las preguntas de Música (lista de [frecuencia, duración]).
+    audio: q.audio ? Array.from(q.audio).map(n => Array.from(n)) : null
   };
 }
 
@@ -47,10 +55,41 @@ function generaPregunta(materiaId, cursoId, tema) {
  * "2,5" cuando la respuesta es "2.5" sabe la respuesta, y marcársela mal
  * sería enseñarle que la app es injusta.
  */
-function respuestaEscritaVale(escrito, correcta) {
-  const limpia = t => String(t).trim().toLowerCase()
-    .replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i').replace(/ó/g,'o').replace(/ú/g,'u')
-    .replace(/,/g, '.');
+function respuestaEscritaVale(escrito, correcta, pregunta) {
+  const q = pregunta || {};
+
+  // Preguntas de decimales: se comparan como NÚMEROS, así "40,20", "40.2" y "40,2"
+  // valen igual y un cero de más no le cuesta un punto a nadie. Es exactamente lo
+  // que hace mismoNumero() en el motor de la app.
+  const aNumero = t => {
+    const v = String(t).trim().replace(/\s/g, '').replace('−', '-').replace(',', '.');
+    return /^-?\d+(\.\d+)?$/.test(v) ? parseFloat(v) : null;
+  };
+  if (q.esDecimal) {
+    const x = aNumero(escrito), y = aNumero(correcta);
+    return x !== null && y !== null && Math.abs(x - y) < 1e-7;
+  }
+
+  // Si las dos son números (una cuenta normal), también se comparan como números:
+  // escribir "07" donde la respuesta es "7" no es un error de matemáticas.
+  const x = aNumero(escrito), y = aNumero(correcta);
+  if (x !== null && y !== null) return Math.abs(x - y) < 1e-7;
+
+  // Y si no, texto. Las mayúsculas y las tildes solo se ignoran cuando la pregunta
+  // dice que se pueden ignorar: en un ejercicio de acentuación, la tilde ES la
+  // pregunta, y darla por buena sería enseñar lo contrario de lo que se repasa.
+  // Si el motor compilado es anterior a este cambio no manda la pista, y entonces
+  // se es indulgente: más vale dar por buena una tilde de menos que suspender a un
+  // niño por culpa de un archivo sin recompilar.
+  const ignora = (q.ignoraMayusculas === undefined) ? true : !!q.ignoraMayusculas;
+  const limpia = t => {
+    let v = String(t).trim();
+    if (ignora) {
+      v = v.toLowerCase()
+        .replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i').replace(/ó/g,'o').replace(/ú/g,'u');
+    }
+    return v;
+  };
   return limpia(escrito) === limpia(correcta);
 }
 
