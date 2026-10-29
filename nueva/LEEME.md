@@ -22,13 +22,14 @@ que una copia dentro de `nueva/` no la ve nadie.
 | `motor-js.js` | **el motor de la app**, compilado de Kotlin a JavaScript |
 | `motor.js` | el enchufe entre la web y el motor, y cómo se corrigen las respuestas |
 | `app.js` | perfiles, alta de alumno, cuadernos, temas, preguntas y resultado |
-| `extras.js` | progreso, logros, tienda, familias, reto semanal, fallos y PIN |
+| `extras.js` | progreso, logros, tienda, familias, reto semanal, fallos, PIN y diploma |
 | `juegos.js` | los diez juegos, incluido el contrarreloj |
 | `minijuegos.js` | los nueve minijuegos premio del final de sesión |
 | `nube.js` | sincronización con Firestore, traducida de `CloudSync.kt` |
 | `manifest.json` | lo que necesita el móvil para instalarla como una app |
 | `sw.js` | el trabajador de fondo: hace que funcione sin internet |
 | `icono-192.png` / `icono-512.png` | el icono, el mismo de Google Play |
+| `cabecera.jpg` | la imagen de Google Play, que encabeza el diploma |
 
 ## El motor es el mismo que el de la app
 
@@ -76,7 +77,7 @@ las reglas de Firestore.
 La web es una PWA: en el móvil o la tablet sale *"Añadir a pantalla de inicio"* y a
 partir de ahí se abre como una app más, a pantalla completa y con su icono.
 
-La primera vez que se abre con conexión, `sw.js` se guarda los 16 archivos. Desde
+La primera vez que se abre con conexión, `sw.js` se guarda los 17 archivos. Desde
 entonces **abre y se puede repasar sin internet**: el motor va dentro y el progreso
 siempre ha vivido en el navegador. Lo único que espera a que vuelva la red es la
 sincronización con el panel, que se reintenta sola.
@@ -92,10 +93,27 @@ demás archivos se renuevan solos en la siguiente visita.
 Aun así, cuando cambies **varios archivos a la vez**, cambia también la fecha de esta
 línea de `sw.js`:
 
-    const VERSION = 'danivia-2026-10-29';
+    const VERSION = 'danivia-2026-10-29c';
 
 Con eso el navegador tira la copia entera y se la vuelve a guardar de golpe, en vez de
 ir archivo por archivo. Es la diferencia entre que la clase vea lo nuevo hoy o mañana.
+
+## Letra grande
+
+Un interruptor en la Zona Familias que agranda TODA la app —texto y botones—, no
+solo las letras. Está hecho con `zoom` sobre el `body` (ver el final de `piel.css`)
+porque las pantallas tienen las medidas en píxeles una a una: tocarlas de una en una
+sería garantizar que alguna se queda sin crecer. Comprobado que no aparece barra de
+desplazamiento horizontal.
+
+## Repaso de ayer
+
+Volver a preguntar lo que acabas de fallar hace diez minutos no enseña casi nada: la
+respuesta sigue fresca y se contesta de memoria corta. Lo que fija es volver a verlo
+**al día siguiente**. Por eso, cuando hay tres o más fallos de días anteriores, la
+tarjeta de la pantalla de cuadernos cambia a "Repaso de ayer" y la sesión se monta
+SOLO con esos, de la más antigua a la más reciente. Si no, sigue apareciendo la de
+"Repasa tus fallos" de siempre, a partir de cinco.
 
 ## Lo que la app tiene y la web no
 

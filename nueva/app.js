@@ -25,6 +25,7 @@ const estado = {
   sonido: almacen.leer('sonido', true),
   vibrar: almacen.leer('vibrar', true),
   pin: almacen.leer('pin', null),
+  letraGrande: almacen.leer('letraGrande', false),
   pantalla: 'perfiles',
   pestana: 'cuadernos',
   materia: null,
@@ -77,6 +78,7 @@ function aplicaPiel() {
     ? 'infantil' : curso.etapa;
   document.body.dataset.etapa = etapa;
   document.body.dataset.oscuro = estado.oscuro ? 'si' : 'no';
+  document.body.dataset.letra = estado.letraGrande ? 'grande' : 'normal';
 }
 
 function pinta() {

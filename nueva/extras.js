@@ -114,6 +114,38 @@ function fallosPendientes(a) {
   return (a.fallos || []).filter(f => f.curso === a.curso);
 }
 
+/**
+ * LOS FALLOS DE DÍAS ANTERIORES.
+ *
+ * Volver a preguntar lo que acabas de fallar hace diez minutos no enseña casi nada:
+ * la respuesta sigue en la cabeza y se contesta de memoria corta. Lo que fija de
+ * verdad es volver a verlo AL DÍA SIGUIENTE, cuando ya se ha olvidado un poco y hay
+ * que recuperarlo de nuevo. Por eso estos van aparte y con su propia tarjeta.
+ */
+function fallosDeOtrosDias(a) {
+  const hoy = new Date().toDateString();
+  return fallosPendientes(a)
+    .filter(f => new Date(f.cuando).toDateString() !== hoy)
+    .sort((x, y) => x.cuando - y.cuando);
+}
+
+/** ¿Alguno es exactamente de ayer? Sirve para llamar a la tarjeta por su nombre. */
+function hayFallosDeAyer(a) {
+  const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
+  const clave = ayer.toDateString();
+  return fallosDeOtrosDias(a).some(f => new Date(f.cuando).toDateString() === clave);
+}
+
+function empiezaRepasoDeAyer(n) {
+  const a = alumnoActual();
+  const pendientes = fallosDeOtrosDias(a).slice(0, n);
+  if (!pendientes.length) return;
+  estado.sesion = { materiaId:null, tema:null, preguntas:pendientes.map(f => f.pregunta),
+                    indice:0, aciertos:0, bloqueada:false, dada:null, racha:0,
+                    mezcla:true, esRepasoFallos:true };
+  estado.pantalla = 'quiz'; pinta();
+}
+
 function empiezaRepasoFallos(n) {
   const a = alumnoActual();
   const pendientes = fallosPendientes(a).sort((x, y) => x.cuando - y.cuando).slice(0, n);
@@ -392,6 +424,7 @@ function pintaFamilias() {
     <div style="background:var(--tarjeta);border-radius:20px;padding:4px 0;margin-bottom:20px;
                 box-shadow:0 1px 4px rgba(0,0,0,.1)">
       ${interruptor('🌙', '#0B2A4A', 'Modo oscuro', estado.oscuro, 'cambiaOscuro()')}
+      ${interruptor('🔎', '#FF9F68', 'Letra grande', !!estado.letraGrande, 'cambiaLetra()')}
       ${interruptor('🔊', '#12B5E5', 'Sonido', estado.sonido !== false, 'cambiaSonido()')}
       ${interruptor('📳', '#3DDC97', 'Vibración', estado.vibrar !== false, 'cambiaVibrar()')}
       ${interruptor('🗣️', '#9B7BFF', 'Voz automática', !!estado.voz, 'cambiaVoz()')}
@@ -429,6 +462,10 @@ function pintaFamilias() {
 
 function cambiaOscuro() { estado.oscuro = !estado.oscuro; almacen.guardar('oscuro', estado.oscuro); pinta(); }
 function cambiaVoz() { estado.voz = !estado.voz; almacen.guardar('voz', estado.voz); if (!estado.voz) callaVoz(); pinta(); }
+/* Agranda toda la app de golpe (ver el bloque "LETRA GRANDE" de piel.css).
+   No es un adorno: para un niño con dislexia o con poca visión es la diferencia
+   entre poder usarla solo o tener que pedir ayuda cada pregunta. */
+function cambiaLetra() { estado.letraGrande = !estado.letraGrande; almacen.guardar('letraGrande', estado.letraGrande); pinta(); }
 function cambiaSonido() { estado.sonido = estado.sonido === false; almacen.guardar('sonido', estado.sonido); pinta(); }
 function cambiaVibrar() { estado.vibrar = estado.vibrar === false; almacen.guardar('vibrar', estado.vibrar); pinta(); }
 
@@ -468,53 +505,106 @@ function borraTodo() {
 }
 
 /* ---------- Diploma e informe: se abren en otra pestaña y se imprimen ---------- */
+/**
+ * Abre una ventana con el documento y la manda a imprimir.
+ *
+ * Se espera a que las IMÁGENES estén cargadas antes de imprimir. Antes se
+ * imprimía a los 400 ms por reloj, y con la cabecera del diploma eso significaba
+ * que a veces salía el hueco en blanco: la impresión no espera a nadie.
+ */
 function abreVentanaImprimible(html) {
   const v = window.open('', '_blank');
   if (!v) { alert('El navegador ha bloqueado la ventana. Permite las ventanas emergentes para imprimir.'); return; }
-  v.document.write(html); v.document.close();
-  setTimeout(() => v.print(), 400);
+  const espera = `<script>
+    (function(){
+      function imprime(){ try { window.focus(); window.print(); } catch(e){} }
+      var fotos = Array.prototype.slice.call(document.images);
+      var quedan = fotos.filter(function(f){ return !f.complete; }).length;
+      if (!quedan) return setTimeout(imprime, 250);
+      fotos.forEach(function(f){
+        if (f.complete) return;
+        var hecho = function(){ if (--quedan <= 0) setTimeout(imprime, 250); };
+        f.addEventListener('load', hecho); f.addEventListener('error', hecho);
+      });
+      setTimeout(imprime, 4000);   // por si alguna imagen no llega nunca
+    })();
+  <\/script>`;
+  v.document.write(html.replace('</body>', espera + '</body>'));
+  v.document.close();
+}
+
+/** La ruta absoluta de un archivo de la web, para poder usarlo en la ventana de imprimir. */
+function rutaAbsoluta(archivo) {
+  try { return new URL(archivo, location.href).href; } catch (e) { return archivo; }
 }
 
 function abreDiploma() {
   const a = alumnoActual();
   const curso = cursoPorId(a.curso);
   const hechas = sumaHechas(a), pct = hechas ? Math.round(sumaAciertos(a) * 100 / hechas) : 0;
-  const medallas = LOGROS.filter(l => l.test(a)).map(l => `<span>${l.nombre}</span>`).join('');
+  const medallas = LOGROS.filter(l => l.test(a)).map(l => `<span>${l.ico} ${l.nombre}</span>`).join('');
   const fecha = new Date().toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' });
+  const dias = racha(a);
+
+  // Tres estrellas llenas o vacías según el acierto, como en el marcador del final
+  // de sesión: el niño ya sabe leerlas sin que nadie se las explique.
+  const estrellas = [0,1,2].map(i => (pct >= [40,70,100][i] ? '★' : '☆')).join(' ');
 
   abreVentanaImprimible(`
-    <html><head><meta charset="utf-8"><title>Diploma de ${a.nombre}</title><style>
-      @page { size: A4 landscape; margin: 10mm }
-      body { font-family: Georgia, serif; text-align:center; color:#0B2A4A; margin:0 }
-      .marco { border:10px double #12B5E5; border-radius:10px; padding:26px 30px; margin:6px }
-      .cab { font-size:13px; letter-spacing:3px; color:#6C7A8A; text-transform:uppercase }
-      h1 { font-size:40px; margin:10px 0 4px }
-      .nombre { font-size:46px; font-weight:bold; margin:18px 0 6px; color:#12B5E5 }
-      .curso { font-size:18px; color:#173A5E; margin-bottom:18px }
-      .texto { font-size:15px; line-height:1.6; max-width:620px; margin:0 auto }
-      .cifras { display:flex; justify-content:center; gap:40px; margin:22px 0 10px }
-      .cifra { font-size:13px; color:#6C7A8A }
-      .cifra b { display:block; font-size:28px; color:#0B2A4A }
-      .medallas span { display:inline-block; border:1px solid #12B5E5; border-radius:20px;
-                       padding:3px 10px; margin:3px; font-size:12px }
-      .pie { margin-top:24px; display:flex; justify-content:space-between; font-size:11px; color:#6C7A8A }
-      .firma { border-top:1px solid #6C7A8A; padding-top:4px; width:200px }
+    <html><head><meta charset="utf-8"><title>Diploma de ${escapaHtml(a.nombre)}</title><style>
+      @page { size: A4; margin: 10mm }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box }
+      body { font-family: Georgia, "Times New Roman", serif; margin:0; color:#0B2A4A;
+             background:#fff; text-align:center }
+      /* El marco ocupa la hoja entera: un diploma con media página en blanco
+         parece un folio a medio imprimir, no un diploma. */
+      .marco { border:6px solid #12B5E5; border-radius:18px; overflow:hidden; margin:2mm;
+               min-height:271mm; display:flex; flex-direction:column }
+      .cabecera { width:100%; display:block }
+      .cuerpo { padding:26px 30px 22px; flex:1; display:flex; flex-direction:column }
+      .centro { flex:1; display:flex; flex-direction:column; justify-content:center }
+      .cab { font-size:11px; letter-spacing:3px; color:#6C7A8A; text-transform:uppercase; margin-top:6px }
+      h1 { font-size:38px; margin:0 0 4px; letter-spacing:.5px }
+      .lazo { display:inline-block; background:#12B5E5; color:#fff; border-radius:30px;
+              padding:4px 16px; font-size:12px; letter-spacing:2px; text-transform:uppercase }
+      .nombre { font-size:54px; font-weight:bold; margin:20px 0 4px; color:#12B5E5; line-height:1.1 }
+      .curso { font-size:17px; color:#173A5E; margin-bottom:6px }
+      .estrellas { font-size:36px; color:#FFC93C; letter-spacing:8px; margin:10px 0 16px }
+      .texto { font-size:14px; line-height:1.6; max-width:560px; margin:0 auto }
+      .cifras { display:flex; justify-content:center; gap:12px; margin:26px auto 12px; max-width:660px }
+      .cifra { flex:1; border:2px solid #E1EDFA; border-radius:14px; padding:10px 6px;
+               font-size:10.5px; color:#6C7A8A; white-space:nowrap }
+      .cifra b { display:block; font-size:26px; color:#0B2A4A; font-family:Georgia,serif }
+      .medallas { margin-top:10px }
+      .medallas span { display:inline-block; border:1.5px solid #12B5E5; border-radius:20px;
+                       padding:3px 10px; margin:3px; font-size:11px; color:#0B2A4A }
+      .pie { margin-top:22px; display:flex; justify-content:space-between; align-items:flex-end;
+             font-size:11px; color:#6C7A8A }
+      .firma { border-top:1px solid #6C7A8A; padding-top:4px; width:190px }
     </style></head><body><div class="marco">
-      <div class="cab">Danivia School · Repaso GVA</div>
-      <h1>Diploma de repaso</h1>
-      <div class="texto">Se concede este diploma a</div>
-      <div class="nombre">${a.nombre}</div>
-      <div class="curso">${curso.nombre}</div>
-      <div class="texto">por su trabajo y su constancia repasando los contenidos del currículo
-        de la Comunitat Valenciana.</div>
-      <div class="cifras">
-        <div class="cifra"><b>${hechas}</b>preguntas respondidas</div>
-        <div class="cifra"><b>${pct}%</b>de aciertos</div>
-        <div class="cifra"><b>${a.estrellasTotal}</b>estrellas ganadas</div>
+      <img class="cabecera" src="${rutaAbsoluta('cabecera.jpg')}" alt="Danivia School · Repaso GVA">
+      <div class="cuerpo">
+        <div class="centro">
+        <h1>Diploma de repaso</h1>
+        <div class="texto">Se concede este diploma a</div>
+        <div class="nombre">${escapaHtml(a.nombre)}</div>
+        <div class="curso">${curso.nombre}</div>
+        <div class="estrellas">${estrellas}</div>
+        <div class="texto">por su trabajo y su constancia repasando los contenidos del currículo
+          de la Comunitat Valenciana.</div>
+        <div class="cifras">
+          <div class="cifra"><b>${hechas}</b>preguntas respondidas</div>
+          <div class="cifra"><b>${pct}%</b>de aciertos</div>
+          <div class="cifra"><b>${a.estrellasTotal || 0}</b>estrellas ganadas</div>
+          <div class="cifra"><b>${dias}</b>${dias === 1 ? 'día seguido' : 'días seguidos'}</div>
+        </div>
+        <div class="medallas">${medallas}</div>
+        </div>
+        <div class="pie">
+          <div class="firma">${fecha}</div>
+          <div class="firma">DANIVIA World Technologies</div>
+        </div>
       </div>
-      <div class="medallas">${medallas}</div>
-      <div class="pie"><div class="firma">${fecha}</div>
-        <div class="firma">DANIVIA World Technologies</div></div>
     </div></body></html>`);
 }
 
@@ -555,23 +645,38 @@ function abreInforme() {
  * persigue por un despiste.
  */
 function tarjetaFallos(a, infantil) {
+  const deAntes = fallosDeOtrosDias(a);
   const pendientes = fallosPendientes(a);
-  if (pendientes.length < 5) return '';
+
+  // Primero, lo de días anteriores: es lo que de verdad hay que recuperar. Con tres
+  // ya merece la pena; con una sola, un "repaso" de una pregunta no es un repaso.
+  const ayer = deAntes.length >= 3;
+  if (!ayer && pendientes.length < 5) return '';
+
+  const cuantas = ayer ? Math.min(10, deAntes.length) : Math.min(10, pendientes.length);
+  const accion = ayer ? `empiezaRepasoDeAyer(${cuantas})` : `empiezaRepasoFallos(${cuantas})`;
+  const color = ayer ? '#FFC93C' : '#FF6B6B';
+  const titulo = ayer
+    ? (infantil ? 'Las de ayer' : (hayFallosDeAyer(a) ? 'Repaso de ayer' : 'Lo que fallaste estos días'))
+    : (infantil ? 'Otra vez esas' : 'Repasa tus fallos');
+  const detalle = ayer
+    ? (infantil ? 'A ver si ahora te salen' :
+       deAntes.length + ' preguntas de otro día — repetirlas hoy es lo que las fija')
+    : (infantil ? 'Las preguntas que fallaste' :
+       pendientes.length + ' preguntas que fallaste, listas para sacártelas');
+
   return `
     <div style="height:14px"></div>
-    <button onclick="empiezaRepasoFallos(${Math.min(10, pendientes.length)})"
-            style="width:100%;display:flex;align-items:center;gap:12px;background:#FF6B6B1F;
-                   border:2px solid #FF6B6B59;border-radius:var(--radio);padding:16px;cursor:pointer;
+    <button onclick="${accion}"
+            style="width:100%;display:flex;align-items:center;gap:12px;background:${color}1F;
+                   border:2px solid ${color}73;border-radius:var(--radio);padding:16px;cursor:pointer;
                    font:inherit;color:inherit;text-align:left">
-      <span style="font-size:${infantil ? 34 : 26}px">${infantil ? '🔁' : '📒'}</span>
+      <span style="font-size:${infantil ? 34 : 26}px">${ayer ? '🌅' : (infantil ? '🔁' : '📒')}</span>
       <span style="flex:1">
-        <strong style="display:block;font-size:${infantil ? 22 : 17}px">
-          ${infantil ? 'Otra vez esas' : 'Repasa tus fallos'}</strong>
-        <small style="font-size:var(--letra-pequena);color:var(--tinta-suave)">
-          ${infantil ? 'Las preguntas que fallaste'
-                     : pendientes.length + ' preguntas que fallaste, listas para sacártelas'}</small>
+        <strong style="display:block;font-size:${infantil ? 22 : 17}px">${titulo}</strong>
+        <small style="font-size:var(--letra-pequena);color:var(--tinta-suave)">${detalle}</small>
       </span>
-      <span style="font-size:${infantil ? 28 : 22}px;color:#FF6B6B">▶</span>
+      <span style="font-size:${infantil ? 28 : 22}px;color:${color}">▶</span>
     </button>`;
 }
 

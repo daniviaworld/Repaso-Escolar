@@ -257,3 +257,18 @@ body[data-etapa="infantil"] .reto {
 .barra-abajo button[aria-current="page"] .ico {
   background: rgba(18,181,229,.15); border-radius: 50px; padding: 2px 16px;
 }
+
+
+/* ===================================================================
+   LETRA GRANDE
+
+   Un solo interruptor que agranda TODA la app, no solo el texto: los
+   botones también crecen, que es lo que de verdad necesita un niño que
+   falla al pulsar. Se hace con zoom sobre el body porque la app está
+   escrita con medidas en píxeles en cada pantalla; tocar una por una
+   sería garantizar que alguna se queda sin crecer.
+
+   El zoom sobre el body reajusta el ancho, así que no aparece la barra
+   de desplazamiento horizontal: está comprobado en el navegador.
+   =================================================================== */
+body[data-letra="grande"] { zoom: 1.18; }
