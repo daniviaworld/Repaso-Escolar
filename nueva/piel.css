@@ -361,3 +361,61 @@ button:active, .cuaderno:active, .tarjeta-infantil:active { transform: scale(.96
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+
+/* La casilla donde está el niño late despacio, para que la encuentre sin buscar. */
+@keyframes latido {
+  0%,100% { transform: translate(-50%,-50%) scale(1) }
+  50%     { transform: translate(-50%,-50%) scale(1.07) }
+}
+button.late { animation: latido 1.6s ease-in-out infinite !important; }
+@keyframes latido-pin { 0%,100% { transform: translateX(-50%) translateY(0) } 50% { transform: translateX(-50%) translateY(-4px) } }
+span.late { animation: latido-pin 1.6s ease-in-out infinite; }
+
+
+/* ===================================================================
+   PRIMARIA, MÁS DE NIÑO
+
+   La piel de Primaria era correcta y sobria: fondo liso, tarjetas
+   blancas, botones planos. Correcta para un adulto. Estos cambios la
+   acercan a la de Infantil SIN volverla de bebés, que a los diez años
+   eso ofende: más color de fondo, esquinas más redondas, botones con
+   relieve y los cuadernos con su color asomando.
+
+   Nada de esto toca a Infantil, que ya iba así.
+   =================================================================== */
+
+body[data-etapa="primaria"]:not([data-oscuro="si"]) {
+  /* Un cielo con suelo cálido en vez de un gris azulado plano. */
+  background: linear-gradient(180deg, #E9F3FF 0%, #E1EDFA 42%, #FFF4E0 100%);
+  background-attachment: fixed;
+}
+body[data-etapa="primaria"] .app { background: transparent; }
+
+body[data-etapa="primaria"] .cabecera {
+  background: linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,0));
+}
+
+/* Los botones pequeños, con relieve: se ven como algo que se puede pulsar. */
+body[data-etapa="primaria"] .btn-chico {
+  border-radius: 16px;
+  box-shadow: 0 3px 0 rgba(0,0,0,.16);
+  font-size: 13px;
+}
+body[data-etapa="primaria"] .btn-chico:active { box-shadow: 0 1px 0 rgba(0,0,0,.16); }
+body[data-etapa="primaria"] .btn-chico.hueco { box-shadow: 0 2px 0 rgba(11,42,74,.12); }
+
+/* Los cuadernos: el color de la materia también por debajo, y esquinas más
+   blandas. Antes el color vivía solo en el lomo. */
+body[data-etapa="primaria"] .cuaderno {
+  border-radius: 8px 24px 24px 8px;
+  box-shadow: 0 4px 0 var(--pista), 0 6px 12px rgba(0,0,0,.12);
+}
+
+body[data-etapa="primaria"] .saludo,
+body[data-etapa="primaria"] .pastilla { border-radius: 24px; }
+
+body[data-etapa="primaria"] .titulo-seccion { font-size: 23px; }
+
+/* La pestaña activa, con su color de fondo bien visible. */
+body[data-etapa="primaria"] .barra-abajo { border-radius: 22px 22px 0 0; }

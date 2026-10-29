@@ -510,16 +510,17 @@ function abreMateria(id) { estado.materia = id; estado.pantalla = 'temas'; pinta
 /**
  * EL CAMINO DE TEMAS.
  *
- * Antes era una lista: un tema debajo de otro, con sus botones. Correcta y
- * aburridísima, y resulta que es la pantalla donde el niño ELIGE qué hacer.
+ * Era una lista de temas, uno debajo de otro. Correcta y aburridísima, y resulta
+ * que es la pantalla donde el niño ELIGE qué hacer.
  *
- * Ahora es un camino de verdad, en zigzag, con sus casillas: la que toca marcada,
- * las dominadas con su estrella, y el sendero dibujado por detrás. Un niño entiende
- * un camino sin que nadie se lo explique —lo ha visto en todos los juegos de mesa
- * de su vida— y además le dice de un vistazo cuánto le queda.
+ * Ahora es un camino de verdad: una senda ancha que serpentea, con sus casillas de
+ * colores, banderas y arbolitos, la casilla donde está marcada y las superadas con
+ * su estrella. Un niño entiende un camino sin que se lo expliquen.
  *
- * Al tocar una casilla se abre su ficha debajo, con las tandas. No se cambia de
- * pantalla a propósito: así no pierde de vista dónde está.
+ * LA FICHA VA ABAJO, FIJA. Al principio se abría debajo del camino y en un móvil
+ * quedaba a cuatrocientos píxeles de distancia: el niño tocaba una casilla, la ficha
+ * cambiaba donde no se veía, y parecía que la app se había colgado. Ahora está
+ * siempre a la vista, pegada encima de las pestañas, con los botones a mano.
  */
 function pintaTemas() {
   const a = alumnoActual();
@@ -536,16 +537,21 @@ function pintaTemas() {
   };
   const dominados = temas.filter(t => estadoDe(t).dominado).length;
 
-  // La casilla "donde está": la primera sin dominar. Es la que se marca.
   const actual = temas.find(t => !estadoDe(t).dominado) || temas[temas.length - 1];
   if (!estado.temaAbierto || !temas.includes(estado.temaAbierto)) estado.temaAbierto = actual;
 
-  // Zigzag: cuatro posiciones que se repiten, como una serpiente.
-  const carriles = [16, 42, 68, 42];
-  const alto = 92, arriba = 26;
-  const punto = i => ({ x: carriles[i % carriles.length], y: arriba + i * alto });
+  // Cada casilla con su color, para que el camino sea de colores y no una fila de
+  // botones iguales. Son los colores de la app, no inventados.
+  const COLORES = ['#12B5E5', '#FF6B6B', '#FFC93C', '#3DDC97', '#9B7BFF', '#FF9F68', '#F06292', '#26C6DA'];
+  const ADORNOS = ['🌳', '🌼', '🎈', '🪁', '🌻', '🦋', '🌈', '🐞'];
 
-  // El sendero, dibujado por detrás con curvas entre casilla y casilla.
+  const carriles = [18, 44, 70, 44];
+  const alto = infantil ? 104 : 96, arriba = 34;
+  const punto = i => ({ x: carriles[i % carriles.length], y: arriba + i * alto });
+  const altoTotal = arriba + (temas.length - 1) * alto + 70;
+
+  // La senda: una banda ancha y clarita con una raya discontinua por el medio,
+  // como una carretera de juguete.
   let d = '';
   temas.forEach((t, i) => {
     const p = punto(i);
@@ -558,49 +564,63 @@ function pintaTemas() {
   const casillas = temas.map((t, i) => {
     const e = estadoDe(t);
     const p = punto(i);
+    const color = COLORES[i % COLORES.length];
     const esActual = t === actual;
     const abierta = t === estado.temaAbierto;
-    const fondo = e.dominado ? '#3DDC97' : e.empezado ? m.color : 'var(--tarjeta)';
-    const tinta = (e.dominado || e.empezado) ? '#fff' : 'var(--tinta-suave)';
-    const lado = infantil ? 62 : 54;
+    const lado = infantil ? 70 : 62;
+    const fondo = e.dominado ? '#FFC93C' : e.empezado ? color : '#fff';
+    const tinta = (e.dominado || e.empezado) ? '#fff' : color;
+    const borde = e.dominado ? '#E8A700' : color;
+    const ladoDerecho = p.x < 50;
     return `
-      <button onclick="abreTema('${t.replace(/'/g, "\\'")}')" class="entra"
+      <button onclick="abreTema('${t.replace(/'/g, "\\'")}')" class="entra${esActual ? ' late' : ''}"
         style="position:absolute;left:${p.x}%;top:${p.y}px;transform:translate(-50%,-50%);
                width:${lado}px;height:${lado}px;border-radius:50%;cursor:pointer;font:inherit;
-               animation-delay:${i * 40}ms;z-index:2;
-               background:${fondo};color:${tinta};font-weight:900;font-size:${infantil ? 22 : 18}px;
-               border:${abierta ? '4px solid var(--sun)' : (e.dominado || e.empezado) ? 'none' : '3px dashed ' + m.color + '80'};
-               box-shadow:${(e.dominado || e.empezado) ? '0 3px 8px rgba(0,0,0,.22)' : 'none'}">
+               animation-delay:${i * 45}ms;z-index:3;padding:0;
+               background:${fondo};color:${tinta};font-weight:900;font-size:${infantil ? 26 : 21}px;
+               border:4px solid ${abierta ? '#0B2A4A' : borde};
+               box-shadow:0 5px 0 ${borde}, 0 7px 10px rgba(0,0,0,.18)">
         ${e.dominado ? '★' : i + 1}
-        ${esActual && !e.dominado ? `<span style="position:absolute;top:-13px;left:50%;
-            transform:translateX(-50%);font-size:17px;line-height:1">📍</span>` : ''}
       </button>
-      ${infantil ? '' : `<span style="position:absolute;top:${p.y}px;transform:translateY(-50%);
-             ${p.x < 50 ? `left:calc(${p.x}% + ${lado / 2 + 10}px);text-align:left`
-                        : `right:calc(${100 - p.x}% + ${lado / 2 + 10}px);text-align:right`};
-             max-width:150px;font-size:12px;font-weight:800;line-height:1.2;
-             color:var(--tinta-suave);z-index:2">${escapaHtml(t)}</span>`}`;
+      ${esActual ? `<span style="position:absolute;left:${p.x}%;top:${p.y - lado / 2 - 16}px;
+           transform:translateX(-50%);font-size:20px;z-index:4" class="late">📍</span>` : ''}
+      <span style="position:absolute;top:${p.y + 2}px;transform:translateY(-50%);z-index:3;
+           ${ladoDerecho ? `left:calc(${p.x}% + ${lado / 2 + 12}px);text-align:left`
+                         : `right:calc(${100 - p.x}% + ${lado / 2 + 12}px);text-align:right`};
+           max-width:145px;font-size:${infantil ? 13 : 12.5}px;font-weight:800;line-height:1.2;
+           color:${e.dominado ? '#B07D00' : 'var(--tinta)'}">
+        ${infantil ? ADORNOS[i % ADORNOS.length] : escapaHtml(t)}
+      </span>
+      ${!infantil ? `<span style="position:absolute;top:${p.y + 26}px;z-index:2;font-size:19px;opacity:.75;
+           ${ladoDerecho ? `right:calc(${100 - p.x}% + ${lado / 2 + 10}px)`
+                         : `left:calc(${p.x}% + ${lado / 2 + 10}px)`}">
+           ${ADORNOS[i % ADORNOS.length]}</span>` : ''}`;
   }).join('');
 
   const t = estado.temaAbierto;
   const e = estadoDe(t);
+  const colorTema = COLORES[temas.indexOf(t) % COLORES.length];
+
+  // La ficha, fija abajo y siempre visible.
   const ficha = `
-    <div style="background:var(--tarjeta);border-radius:var(--radio);padding:16px;margin-top:10px;
-                box-shadow:0 2px 8px rgba(0,0,0,.14);border:3px solid var(--sun)">
-      <div style="display:flex;align-items:center;gap:8px">
-        <strong style="flex:1;font-size:${infantil ? 21 : 17}px">${escapaHtml(t)}</strong>
-        ${e.dominado ? '<span style="font-size:11px;font-weight:900;color:#3DDC97">★ Dominado</span>' : ''}
-      </div>
-      ${e.s.hechas ? `<div style="font-size:var(--letra-pequena);color:var(--tinta-suave);margin-top:4px">
-            ${e.s.hechas} hechas · ${e.pct}% de aciertos</div>
-          <div class="barra" style="--color:${e.dominado ? '#3DDC97' : m.color};--pista:${m.color}26;margin-top:6px">
-            <i style="width:${e.pct}%"></i></div>`
-        : `<div style="font-size:var(--letra-pequena);color:var(--tinta-suave);margin-top:4px">
-             ${infantil ? '¡Vamos a probar!' : 'Todavía sin empezar'}</div>`}
-      <div style="display:flex;gap:8px;margin-top:12px">
-        ${tandas.map(n => `<button class="btn-chico" style="background:${m.color};color:#fff;
-             flex:1;padding:${infantil ? 14 : 10}px;font-size:${infantil ? 19 : 15}px"
-             onclick="empiezaQuiz('${m.id}','${t.replace(/'/g, "\\'")}',${n})">${n}</button>`).join('')}
+    <div style="position:fixed;bottom:62px;left:50%;transform:translateX(-50%);
+                width:min(430px,100%);z-index:20;padding:0 12px;box-sizing:border-box">
+      <div style="background:var(--tarjeta);border-radius:22px;padding:14px 16px;
+                  box-shadow:0 -2px 18px rgba(0,0,0,.18);border:4px solid ${colorTema}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:34px;height:34px;border-radius:50%;background:${colorTema};color:#fff;
+                       display:grid;place-items:center;font-weight:900;font-size:16px">
+            ${e.dominado ? '★' : temas.indexOf(t) + 1}</span>
+          <strong style="flex:1;font-size:${infantil ? 20 : 16}px;line-height:1.2">${escapaHtml(t)}</strong>
+          ${e.s.hechas ? `<small style="font-size:12px;font-weight:800;
+                color:${e.dominado ? '#3DDC97' : 'var(--tinta-suave)'}">${e.pct}%</small>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          ${tandas.map(n => `<button class="btn-chico" style="background:${colorTema};color:#fff;
+               flex:1;padding:${infantil ? 15 : 12}px;font-size:${infantil ? 20 : 16}px;
+               box-shadow:0 4px 0 rgba(0,0,0,.18)"
+               onclick="empiezaQuiz('${m.id}','${t.replace(/'/g, "\\'")}',${n})">${n}</button>`).join('')}
+        </div>
       </div>
     </div>`;
 
@@ -608,33 +628,39 @@ function pintaTemas() {
     <button class="btn-chico hueco" onclick="estado.pantalla='principal';pinta()">← Cuadernos</button>
     <h2 class="titulo-seccion" style="margin-top:10px">${m.icono} ${m.nombre}</h2>
 
-    <div style="background:var(--tarjeta);border-radius:var(--radio);padding:14px;margin:10px 0 6px;
-                box-shadow:0 1px 4px rgba(0,0,0,.12);display:flex;align-items:center;gap:12px">
+    <div style="background:var(--tarjeta);border-radius:var(--radio);padding:12px 14px;margin:10px 0 6px;
+                box-shadow:0 2px 6px rgba(0,0,0,.12);display:flex;align-items:center;gap:10px">
       <span style="font-size:26px">🎲</span>
       <span style="flex:1">
         <strong style="display:block;font-size:${infantil ? 19 : 15}px">${infantil ? 'Todo mezclado' : 'Repaso completo'}</strong>
-        ${infantil ? '' : '<small style="font-size:var(--letra-pequena);color:var(--tinta-suave)">Preguntas de todos los temas</small>'}
+        ${infantil ? '' : '<small style="font-size:var(--letra-pequena);color:var(--tinta-suave)">De todos los temas</small>'}
       </span>
-      ${tandas.map(n => `<button class="btn-chico" style="background:var(--sun)"
+      ${tandas.map(n => `<button class="btn-chico" style="background:var(--sun);box-shadow:0 3px 0 #D9A300"
            onclick="empiezaQuiz('${m.id}',null,${n})">${n}</button>`).join('')}
     </div>
 
-    <div style="display:flex;align-items:center;margin:16px 0 4px">
+    <div style="display:flex;align-items:center;margin:14px 0 2px">
       <h2 class="titulo-seccion" style="flex:1;font-size:19px">${infantil ? 'Mi camino' : 'El camino'}</h2>
       <small style="font-weight:800;color:var(--tinta-suave)">${dominados} de ${temas.length} ★</small>
     </div>
 
-    <div style="position:relative;height:${arriba + (temas.length - 1) * alto + 60}px;margin:0 -4px">
+    <div style="position:relative;height:${altoTotal}px;margin:0 -2px">
       <svg width="100%" height="100%" style="position:absolute;inset:0;z-index:1" preserveAspectRatio="none"
-           viewBox="0 0 100 ${arriba + (temas.length - 1) * alto + 60}">
-        <path d="${d}" fill="none" stroke="${m.color}" stroke-opacity=".30" stroke-width="2.4"
-              stroke-linecap="round" stroke-dasharray="5 5" vector-effect="non-scaling-stroke"/>
+           viewBox="0 0 100 ${altoTotal}">
+        <path d="${d}" fill="none" stroke="${m.color}" stroke-opacity=".18" stroke-width="26"
+              stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+        <path d="${d}" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="3"
+              stroke-linecap="round" stroke-dasharray="9 11" vector-effect="non-scaling-stroke"/>
       </svg>
       ${casillas}
+      <span style="position:absolute;left:${punto(temas.length - 1).x}%;
+                   top:${punto(temas.length - 1).y + 46}px;transform:translateX(-50%);
+                   font-size:30px;z-index:3">🏁</span>
     </div>
 
-    ${ficha}
-    <div style="height:10px"></div>`);
+    <!-- Hueco para que la ficha fija no tape la última casilla -->
+    <div style="height:132px"></div>
+    ${ficha}`);
 }
 
 /** Abre la ficha de un tema sin cambiar de pantalla. */
