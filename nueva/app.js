@@ -285,6 +285,45 @@ function creaAlumno() {
 
 function eligeAlumno(id) { estado.actual = id; olvidarRecientes(); guardaTodo(); estado.pantalla = 'principal'; pinta(); }
 
+
+/**
+ * LO QUE DICE DANI EN EL INICIO.
+ *
+ * Dani salía solo al responder una pregunta, y es el mejor personaje que tiene la
+ * app. Aquí saluda y, sobre todo, DICE ALGO ÚTIL: la materia que lleva días sin
+ * tocar, la racha que puede perder hoy, los fallos que tiene pendientes. Es el
+ * empujón que en la app de Android da el recordatorio diario, pero dentro.
+ *
+ * Nunca riñe. "Hoy no has hecho nada" no mueve a un niño de nueve años; "te queda
+ * una para la medalla", sí.
+ */
+function fraseDeDani(a, curso) {
+  const deAntes = (typeof fallosDeOtrosDias === 'function') ? fallosDeOtrosDias(a) : [];
+  if (deAntes.length >= 3) return '¿Sacamos las de ayer? 🌅';
+
+  const dias = (typeof racha === 'function') ? racha(a) : 0;
+  const hoy = new Date().toDateString();
+  const hechoHoy = (a.historial || []).some(h => new Date(h.d).toDateString() === hoy);
+  if (dias >= 2 && !hechoHoy) return `¡Llevas ${dias} días seguidos! No lo pierdas 🔥`;
+
+  // La materia más olvidada: la que menos ha practicado de su curso.
+  const materias = materiasDe(curso);
+  const sinTocar = materias.filter(m => !a.stats[m.id] || !a.stats[m.id].hechas);
+  if (sinTocar.length) {
+    const m = sinTocar[Math.floor(Math.random() * sinTocar.length)];
+    return `Hoy no has tocado ${m.nombre} ${m.icono}`;
+  }
+
+  const flojo = materias
+    .map(m => ({ m, st: a.stats[m.id] }))
+    .filter(x => x.st && x.st.hechas >= 4)
+    .sort((x, y) => (x.st.ok / x.st.hechas) - (y.st.ok / y.st.hechas))[0];
+  if (flojo && flojo.st.ok / flojo.st.hechas < 0.7) {
+    return `${flojo.m.nombre} se te resiste un poco ${flojo.m.icono}`;
+  }
+  return curso.nombre + ' · ¡vas muy bien! 💪';
+}
+
 /* ---------- Armazón con cabecera y pestañas ---------- */
 function marco(contenido) {
   const a = alumnoActual();
@@ -297,11 +336,22 @@ function marco(contenido) {
         <span class="ico">${ico}</span>${txt}
       </button>`).join('');
 
+  // La tienda de Dani es la mejor mecánica que tiene la app y estaba escondida en
+  // Progreso. Ahora se entra tocando las estrellas, que es donde el niño mira. Y si
+  // ya le llega para algo que no tiene, sale un punto: no hace falta saber leer.
+  const puede = a && CATALOGO_DANI.some(x => x.precio > 0 && x.precio <= a.estrellas
+                                             && !(a.comprados || []).includes(x.id));
+
   return `
     <div class="cabecera">
       <img class="logo" src="icono-192.png" alt="Danivia School">
       <div class="marca"><b>DANIVIA SCHOOL</b><small>REPASO ESCOLAR · GVA</small></div>
-      <div class="pastilla">⭐ ${estrellas}</div>
+      <button class="pastilla" id="pastilla-estrellas" onclick="estado.pantalla='tienda';pinta()"
+              style="border:none;cursor:pointer;font:inherit;position:relative">
+        ⭐ <span id="contador-estrellas">${a ? a.estrellas : estrellas}</span>
+        ${puede ? `<span style="position:absolute;top:-3px;right:-3px;width:11px;height:11px;
+             border-radius:50%;background:#FF6B6B;border:2px solid var(--fondo)"></span>` : ''}
+      </button>
     </div>
     <div class="contenido">${contenido}</div>
     <nav class="barra-abajo">${pes}</nav>`;
@@ -343,13 +393,14 @@ function pintaPrincipal() {
     return;
   }
 
-  const tarjetas = materiasDe(curso).map(m => {
+  const tarjetas = materiasDe(curso).map((m, i) => {
+    const retraso = `animation-delay:${i * 45}ms`;
     const st = a.stats[m.id];
     const empezada = st && st.hechas > 0;
     const pct = empezada ? Math.round(st.ok * 100 / st.hechas) : 0;
 
     if (infantil) {
-      return `<button class="tarjeta-infantil" style="--color:${m.color};--suave:${m.color}2E"
+      return `<button class="tarjeta-infantil entra" style="--color:${m.color};--suave:${m.color}2E;${retraso}"
                 onclick="abreMateria('${m.id}')">
                 <span class="cuadro">${m.icono}</span>
                 <span class="nombre">${m.nombre}
@@ -359,7 +410,7 @@ function pintaPrincipal() {
                 <span class="flecha">▶</span>
               </button>`;
     }
-    return `<button class="cuaderno" style="--color:${m.color};--papel:${m.color}12;--pista:${m.color}26"
+    return `<button class="cuaderno entra" style="--color:${m.color};--papel:${m.color}12;--pista:${m.color}26;${retraso}"
               onclick="abreMateria('${m.id}')">
               <span class="lomo"><i class="anilla"></i><i class="anilla"></i><i class="anilla"></i></span>
               <span class="hojas">
@@ -376,11 +427,10 @@ function pintaPrincipal() {
 
   app().innerHTML = marco(`
     <div class="saludo">
-      ${infantil ? '<canvas id="dani-saludo" style="width:58px;height:58px"></canvas>'
-                 : `<span class="avatar">${a.avatar}</span>`}
+      <canvas id="dani-saludo" style="width:${infantil ? 62 : 56}px;height:${infantil ? 62 : 56}px"></canvas>
       <div style="flex:1">
         <h1>${infantil ? '¡Hola, ' + a.nombre + '!' : saludo() + ', ' + a.nombre}</h1>
-        <div class="curso">${curso.nombre}</div>
+        <div class="curso">${infantil ? curso.nombre : escapaHtml(fraseDeDani(a, curso))}</div>
       </div>
       <div class="botones">
         <button class="btn-chico" onclick="cambiaCurso()">🎓 Curso</button>
@@ -404,7 +454,8 @@ function pintaPrincipal() {
       </div>
     </div>`);
 
-  if (infantil) animaDani(document.getElementById('dani-saludo'), { animo: 'tranquilo', ...aspectoDani(a) });
+  // Dani saluda también en Primaria: es el personaje de la app, no un adorno de Infantil.
+  animaDani(document.getElementById('dani-saludo'), { animo: 'alegre', ...aspectoDani(a) });
 }
 
 function aspectoDani(a) {
@@ -456,6 +507,20 @@ function eligeCursoDeAlumno(nuevo) {
 /* ---------- El camino de temas ---------- */
 function abreMateria(id) { estado.materia = id; estado.pantalla = 'temas'; pinta(); }
 
+/**
+ * EL CAMINO DE TEMAS.
+ *
+ * Antes era una lista: un tema debajo de otro, con sus botones. Correcta y
+ * aburridísima, y resulta que es la pantalla donde el niño ELIGE qué hacer.
+ *
+ * Ahora es un camino de verdad, en zigzag, con sus casillas: la que toca marcada,
+ * las dominadas con su estrella, y el sendero dibujado por detrás. Un niño entiende
+ * un camino sin que nadie se lo explique —lo ha visto en todos los juegos de mesa
+ * de su vida— y además le dice de un vistazo cuánto le queda.
+ *
+ * Al tocar una casilla se abre su ficha debajo, con las tandas. No se cambia de
+ * pantalla a propósito: así no pierde de vista dónde está.
+ */
 function pintaTemas() {
   const a = alumnoActual();
   const curso = cursoPorId(a.curso);
@@ -464,74 +529,116 @@ function pintaTemas() {
   const temas = temasDe(m.id);
   const tandas = infantil ? [5, 10] : [10, 25, 50];
 
-  const dominados = temas.filter(t => {
-    const s = estadisticaTema(a, m.id, t);
-    return s.hechas >= 10 && s.ok * 100 / s.hechas >= 80;
-  }).length;
-
-  const casillas = temas.map((t, i) => {
+  const estadoDe = t => {
     const s = estadisticaTema(a, m.id, t);
     const pct = s.hechas ? Math.round(s.ok * 100 / s.hechas) : 0;
-    const dominado = s.hechas >= 10 && pct >= 80;
-    const empezado = s.hechas > 0;
-    const fondo = dominado ? '#3DDC97' : empezado ? m.color : 'var(--tarjeta)';
-    const tinta = (dominado || empezado) ? '#fff' : 'var(--tinta-suave)';
+    return { s, pct, dominado: s.hechas >= 10 && pct >= 80, empezado: s.hechas > 0 };
+  };
+  const dominados = temas.filter(t => estadoDe(t).dominado).length;
+
+  // La casilla "donde está": la primera sin dominar. Es la que se marca.
+  const actual = temas.find(t => !estadoDe(t).dominado) || temas[temas.length - 1];
+  if (!estado.temaAbierto || !temas.includes(estado.temaAbierto)) estado.temaAbierto = actual;
+
+  // Zigzag: cuatro posiciones que se repiten, como una serpiente.
+  const carriles = [16, 42, 68, 42];
+  const alto = 92, arriba = 26;
+  const punto = i => ({ x: carriles[i % carriles.length], y: arriba + i * alto });
+
+  // El sendero, dibujado por detrás con curvas entre casilla y casilla.
+  let d = '';
+  temas.forEach((t, i) => {
+    const p = punto(i);
+    if (i === 0) { d += `M ${p.x} ${p.y} `; return; }
+    const ant = punto(i - 1);
+    const medio = (ant.y + p.y) / 2;
+    d += `C ${ant.x} ${medio}, ${p.x} ${medio}, ${p.x} ${p.y} `;
+  });
+
+  const casillas = temas.map((t, i) => {
+    const e = estadoDe(t);
+    const p = punto(i);
+    const esActual = t === actual;
+    const abierta = t === estado.temaAbierto;
+    const fondo = e.dominado ? '#3DDC97' : e.empezado ? m.color : 'var(--tarjeta)';
+    const tinta = (e.dominado || e.empezado) ? '#fff' : 'var(--tinta-suave)';
+    const lado = infantil ? 62 : 54;
     return `
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="display:flex;flex-direction:column;align-items:center">
-          <div style="width:46px;height:46px;border-radius:50%;background:${fondo};color:${tinta};
-                      display:grid;place-items:center;font-weight:900;font-size:17px;
-                      border:${(dominado || empezado) ? 'none' : '2.5px solid ' + m.color + '73'};
-                      box-shadow:${(dominado || empezado) ? '0 2px 5px rgba(0,0,0,.18)' : 'none'}">
-            ${dominado ? '★' : i + 1}
-          </div>
-          ${i < temas.length - 1 ? `<div style="width:4px;height:22px;border-radius:50px;
-             background:${dominado ? '#3DDC978C' : m.color + '38'}"></div>` : ''}
-        </div>
-        <div style="flex:1;background:var(--tarjeta);border-radius:var(--radio);padding:14px;
-                    box-shadow:0 1px 4px rgba(0,0,0,.12);margin-bottom:12px">
-          <div style="display:flex;align-items:center">
-            <strong style="flex:1;font-size:${infantil ? 20 : 15}px">${t}</strong>
-            ${dominado ? '<span style="font-size:11px;font-weight:900;color:#3DDC97">Dominado</span>' : ''}
-          </div>
-          ${s.hechas ? `<div style="font-size:var(--letra-pequena);color:var(--tinta-suave);margin-top:3px">
-              ${s.hechas} hechas · ${pct}% aciertos</div>
-            <div class="barra" style="--color:${dominado ? '#3DDC97' : m.color};--pista:${m.color}26">
-              <i style="width:${pct}%"></i></div>` : ''}
-          <div style="display:flex;gap:6px;margin-top:10px">
-            ${tandas.map(n => `<button class="btn-chico" style="background:${m.color};color:#fff"
-                 onclick="empiezaQuiz('${m.id}','${t.replace(/'/g, "\\'")}',${n})">${n}</button>`).join('')}
-          </div>
-        </div>
-      </div>`;
+      <button onclick="abreTema('${t.replace(/'/g, "\\'")}')" class="entra"
+        style="position:absolute;left:${p.x}%;top:${p.y}px;transform:translate(-50%,-50%);
+               width:${lado}px;height:${lado}px;border-radius:50%;cursor:pointer;font:inherit;
+               animation-delay:${i * 40}ms;z-index:2;
+               background:${fondo};color:${tinta};font-weight:900;font-size:${infantil ? 22 : 18}px;
+               border:${abierta ? '4px solid var(--sun)' : (e.dominado || e.empezado) ? 'none' : '3px dashed ' + m.color + '80'};
+               box-shadow:${(e.dominado || e.empezado) ? '0 3px 8px rgba(0,0,0,.22)' : 'none'}">
+        ${e.dominado ? '★' : i + 1}
+        ${esActual && !e.dominado ? `<span style="position:absolute;top:-13px;left:50%;
+            transform:translateX(-50%);font-size:17px;line-height:1">📍</span>` : ''}
+      </button>
+      ${infantil ? '' : `<span style="position:absolute;top:${p.y}px;transform:translateY(-50%);
+             ${p.x < 50 ? `left:calc(${p.x}% + ${lado / 2 + 10}px);text-align:left`
+                        : `right:calc(${100 - p.x}% + ${lado / 2 + 10}px);text-align:right`};
+             max-width:150px;font-size:12px;font-weight:800;line-height:1.2;
+             color:var(--tinta-suave);z-index:2">${escapaHtml(t)}</span>`}`;
   }).join('');
+
+  const t = estado.temaAbierto;
+  const e = estadoDe(t);
+  const ficha = `
+    <div style="background:var(--tarjeta);border-radius:var(--radio);padding:16px;margin-top:10px;
+                box-shadow:0 2px 8px rgba(0,0,0,.14);border:3px solid var(--sun)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <strong style="flex:1;font-size:${infantil ? 21 : 17}px">${escapaHtml(t)}</strong>
+        ${e.dominado ? '<span style="font-size:11px;font-weight:900;color:#3DDC97">★ Dominado</span>' : ''}
+      </div>
+      ${e.s.hechas ? `<div style="font-size:var(--letra-pequena);color:var(--tinta-suave);margin-top:4px">
+            ${e.s.hechas} hechas · ${e.pct}% de aciertos</div>
+          <div class="barra" style="--color:${e.dominado ? '#3DDC97' : m.color};--pista:${m.color}26;margin-top:6px">
+            <i style="width:${e.pct}%"></i></div>`
+        : `<div style="font-size:var(--letra-pequena);color:var(--tinta-suave);margin-top:4px">
+             ${infantil ? '¡Vamos a probar!' : 'Todavía sin empezar'}</div>`}
+      <div style="display:flex;gap:8px;margin-top:12px">
+        ${tandas.map(n => `<button class="btn-chico" style="background:${m.color};color:#fff;
+             flex:1;padding:${infantil ? 14 : 10}px;font-size:${infantil ? 19 : 15}px"
+             onclick="empiezaQuiz('${m.id}','${t.replace(/'/g, "\\'")}',${n})">${n}</button>`).join('')}
+      </div>
+    </div>`;
 
   app().innerHTML = marco(`
     <button class="btn-chico hueco" onclick="estado.pantalla='principal';pinta()">← Cuadernos</button>
     <h2 class="titulo-seccion" style="margin-top:10px">${m.icono} ${m.nombre}</h2>
-    <p class="subtitulo">${curso.nombre}</p>
 
-    <div style="background:var(--tarjeta);border-radius:var(--radio);padding:16px;margin-bottom:16px;
-                box-shadow:0 1px 4px rgba(0,0,0,.12)">
-      <strong>${infantil ? 'Todo mezclado' : 'Repaso completo'}</strong>
-      <div style="font-size:var(--letra-pequena);color:var(--tinta-suave);margin:4px 0 10px">
-        Preguntas de todos los temas</div>
-      <div style="display:flex;gap:8px">
-        ${tandas.map(n => `<button class="btn-chico" style="background:var(--sun)"
-             onclick="empiezaQuiz('${m.id}',null,${n})">${n}</button>`).join('')}
-      </div>
+    <div style="background:var(--tarjeta);border-radius:var(--radio);padding:14px;margin:10px 0 6px;
+                box-shadow:0 1px 4px rgba(0,0,0,.12);display:flex;align-items:center;gap:12px">
+      <span style="font-size:26px">🎲</span>
+      <span style="flex:1">
+        <strong style="display:block;font-size:${infantil ? 19 : 15}px">${infantil ? 'Todo mezclado' : 'Repaso completo'}</strong>
+        ${infantil ? '' : '<small style="font-size:var(--letra-pequena);color:var(--tinta-suave)">Preguntas de todos los temas</small>'}
+      </span>
+      ${tandas.map(n => `<button class="btn-chico" style="background:var(--sun)"
+           onclick="empiezaQuiz('${m.id}',null,${n})">${n}</button>`).join('')}
     </div>
 
-    <div style="display:flex;align-items:center;margin-bottom:8px">
+    <div style="display:flex;align-items:center;margin:16px 0 4px">
       <h2 class="titulo-seccion" style="flex:1;font-size:19px">${infantil ? 'Mi camino' : 'El camino'}</h2>
-      <small style="font-weight:700;color:var(--tinta-suave)">${dominados} de ${temas.length} dominados</small>
+      <small style="font-weight:800;color:var(--tinta-suave)">${dominados} de ${temas.length} ★</small>
     </div>
-    <div class="barra" style="--color:#3DDC97;--pista:#3DDC972E;height:10px;margin-bottom:16px">
-      <i style="width:${temas.length ? dominados * 100 / temas.length : 0}%"></i></div>
 
-    ${casillas}
-    ${infantil ? '' : '<p class="subtitulo">Todos los temas están abiertos desde el primer día: repasa el que te toque en clase.</p>'}`);
+    <div style="position:relative;height:${arriba + (temas.length - 1) * alto + 60}px;margin:0 -4px">
+      <svg width="100%" height="100%" style="position:absolute;inset:0;z-index:1" preserveAspectRatio="none"
+           viewBox="0 0 100 ${arriba + (temas.length - 1) * alto + 60}">
+        <path d="${d}" fill="none" stroke="${m.color}" stroke-opacity=".30" stroke-width="2.4"
+              stroke-linecap="round" stroke-dasharray="5 5" vector-effect="non-scaling-stroke"/>
+      </svg>
+      ${casillas}
+    </div>
+
+    ${ficha}
+    <div style="height:10px"></div>`);
 }
+
+/** Abre la ficha de un tema sin cambiar de pantalla. */
+function abreTema(t) { estado.temaAbierto = t; pinta(); }
 
 /* ---------- Preguntas ---------- */
 function empiezaQuiz(materiaId, tema, n) {
@@ -585,7 +692,8 @@ function pintaQuiz() {
     else if (elegida) { fondo = '#FF6B6B'; tinta = '#fff'; marca = '✗'; }
     else if (s.bloqueada) { fondo = 'var(--tarjeta)'; tinta = 'var(--tinta-suave)'; }
     const cuerpo = infantil ? (soloDibujo ? 44 : 26) : (soloDibujo ? 26 : 16);
-    return `<button onclick="respondeOpcion(${i})" ${s.bloqueada ? 'disabled' : ''}
+    const gesto = (s.bloqueada && buena) ? ' acierta' : (elegida ? ' falla' : '');
+    return `<button onclick="respondeOpcion(${i})" ${s.bloqueada ? 'disabled' : ''} class="${gesto.trim()}"
               style="background:${fondo};color:${tinta};border:${s.bloqueada ? 'none' : '1.5px solid ' + m.color + '59'};
                      border-radius:${infantil ? 22 : 18}px;padding:${infantil ? 16 : 12}px;cursor:pointer;
                      font:inherit;font-weight:700;font-size:${cuerpo}px;min-height:${infantil ? 86 : 68}px;
@@ -633,8 +741,15 @@ function pintaQuiz() {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
         <button class="btn-chico hueco" onclick="callaVoz();estado.pantalla='principal';pinta()">✕</button>
         <div class="barra" style="flex:1;--color:${m.color};--pista:${m.color}33;height:10px">
-          <i style="width:${s.indice * 100 / s.preguntas.length}%"></i></div>
+          <!-- Cuenta las CONTESTADAS, no las pasadas: antes, al responder la última,
+               la barra se quedaba al 90% y el niño no la veía llenarse nunca. -->
+          <i style="width:${(s.indice + (s.bloqueada ? 1 : 0)) * 100 / s.preguntas.length}%"></i></div>
         ${s.racha >= 2 ? `<span class="pastilla" style="background:#FFC93C40">🔥 ${s.racha}</span>` : ''}
+        <!-- El contador de estrellas también DENTRO de la sesión: es donde aterriza la
+             estrella de cada acierto. Verlas subir mientras responde es la mitad de la
+             gracia; si solo se ven al salir, acertar no se nota. -->
+        <span class="pastilla" id="pastilla-estrellas" style="background:#FFC93C33;font-weight:900">
+          ⭐ <span id="contador-estrellas">${a.estrellas}</span></span>
         <strong style="font-size:14px">${s.indice + 1}/${s.preguntas.length}</strong>
       </div>
 
@@ -707,7 +822,9 @@ function respondeOpcion(i) {
   const s = estado.sesion;
   if (s.bloqueada) return;
   const o = s.preguntas[s.indice].opciones[i];
-  responde(o, o === s.preguntas[s.indice].respuesta);
+  // De dónde sale la estrella: del botón que acaba de tocar.
+  const botones = document.querySelectorAll('div[style*="grid-template-columns"] > button');
+  responde(o, o === s.preguntas[s.indice].respuesta, botones[i]);
 }
 
 function respondeEscrito() {
@@ -717,13 +834,15 @@ function respondeEscrito() {
   const escrito = c ? c.value.trim() : '';
   if (!escrito) return;                       // vacío no cuenta como fallo
   const pregunta = s.preguntas[s.indice];
-  responde(escrito, respuestaEscritaVale(escrito, pregunta.respuesta, pregunta));
+  responde(escrito, respuestaEscritaVale(escrito, pregunta.respuesta, pregunta), c);
 }
 
-function responde(dada, acierto) {
+function responde(dada, acierto, desde) {
   const s = estado.sesion;
   if (s.bloqueada) return;
   const q = s.preguntas[s.indice];
+  // Dónde estaba lo que ha tocado, ANTES de repintar: después ya no existe.
+  const origen = desde ? desde.getBoundingClientRect() : null;
   s.bloqueada = true; s.dada = dada; s.acierto = acierto;
   s.racha = acierto ? s.racha + 1 : 0;
   if (acierto) s.aciertos++;
@@ -732,6 +851,10 @@ function responde(dada, acierto) {
   apuntaFallo(alumnoActual(), q, acierto, !!s.esRepasoFallos);
   guardaTodo();
   pinta();
+  // La estrella viaja al contador. Es lo que hace que acertar se note.
+  if (acierto && origen) {
+    estrellaQueVuela({ getBoundingClientRect: () => origen });
+  }
 
   // Al acertar pasa sola, igual que en la app: en una sesión de 25, son
   // 25 toques que no deciden nada.
@@ -855,7 +978,13 @@ function pintaMarcador() {
     if (puestas >= estrellas) return clearInterval(timer);
     puestas++;
     caja.textContent = '⭐'.repeat(puestas) + '☆'.repeat(3 - puestas);
+    caja.classList.remove('sube'); void caja.offsetWidth; caja.classList.add('sube');
   }, 300);
+
+  // CONFETI. Un pleno sin celebrar es un pleno desperdiciado: el niño ha hecho lo
+  // máximo que se le puede pedir y la pantalla le responde con un número. Cae al
+  // terminar de ponerse las estrellas, no antes, para que no se pisen.
+  if (estrellas >= 2) setTimeout(() => confeti(estrellas === 3 ? 2 : 1), 300 * estrellas + 150);
 
   animaDani(document.getElementById('dani-fin'),
     { animo: estrellas >= 2 ? 'alegre' : 'tranquilo', ...aspectoDani(a) });

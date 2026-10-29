@@ -19,6 +19,7 @@ que una copia dentro de `nueva/` no la ve nadie.
 | `datos.js` | cursos y materias, copiados de `Subject.kt` y `Course.kt` |
 | `dani.js` | Dani dibujado en canvas y el catálogo de su tienda |
 | `sonido.js` | pitidos, vibración, voz y el sonido de las preguntas de Música |
+| `fiesta.js` | la estrella que vuela al contador y el confeti del final |
 | `motor-js.js` | **el motor de la app**, compilado de Kotlin a JavaScript |
 | `motor.js` | el enchufe entre la web y el motor, y cómo se corrigen las respuestas |
 | `app.js` | perfiles, alta de alumno, cuadernos, temas, preguntas y resultado |
@@ -30,6 +31,7 @@ que una copia dentro de `nueva/` no la ve nadie.
 | `sw.js` | el trabajador de fondo: hace que funcione sin internet |
 | `icono-192.png` / `icono-512.png` | el icono, el mismo de Google Play |
 | `cabecera.jpg` | la imagen de Google Play, que encabeza el diploma |
+| `nunito-*.woff2` | la letra, metida en el propio sitio (72 KB entre las cuatro) |
 
 ## El motor es el mismo que el de la app
 
@@ -114,6 +116,35 @@ respuesta sigue fresca y se contesta de memoria corta. Lo que fija es volver a v
 tarjeta de la pantalla de cuadernos cambia a "Repaso de ayer" y la sesión se monta
 SOLO con esos, de la más antigua a la más reciente. Si no, sigue apareciendo la de
 "Repasa tus fallos" de siempre, a partir de cinco.
+
+## Lo que se hizo para que entre por los ojos a un niño
+
+**Se mueve.** Antes todo aparecía de golpe. Ahora los botones se hunden al pulsarlos,
+la respuesta correcta da un salto, la que falla se sacude, las tarjetas entran
+escalonadas y la barra de progreso se llena en vez de saltar. Todo en CSS, sin
+librerías, y respetando a quien tenga pedido en su móvil que no se mueva nada.
+
+**La estrella vuela.** Al acertar sale una estrella de donde ha respondido y viaja
+hasta el contador, que da un respingo. El contador está también DENTRO de la sesión:
+verlas subir mientras responde es la mitad de la gracia.
+
+**Hay confeti.** Al terminar con dos o tres estrellas. Un pleno sin celebrar es un
+pleno desperdiciado.
+
+**La letra es redonda** (Nunito). La del sistema es la misma que usan el correo y los
+ajustes: correcta y adulta.
+
+**El camino es un camino.** Era una lista de temas uno debajo de otro, y resulta que
+es la pantalla donde el niño elige qué hacer. Ahora es un camino en zigzag con sus
+casillas: la que toca marcada con 📍, las dominadas con su ★ y la ficha del tema
+abriéndose debajo sin cambiar de pantalla.
+
+**Dani sale en el inicio** y dice algo útil: la materia que lleva sin tocar, la racha
+que puede perder hoy, los fallos de ayer. Nunca riñe.
+
+**La tienda se abre tocando las estrellas**, y sale un punto rojo cuando ya le llega
+para algo que no tiene. Antes estaba escondida en Progreso, siendo la mejor mecánica
+que tiene la app.
 
 ## Lo que la app tiene y la web no
 

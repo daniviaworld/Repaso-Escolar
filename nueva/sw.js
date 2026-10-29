@@ -17,7 +17,7 @@
    tocarlo, los niños seguirían abriendo la versión guardada.
    =================================================================== */
 
-const VERSION = 'danivia-2026-10-29d';
+const VERSION = 'danivia-2026-10-30';
 
 /* Lo que se guarda la primera vez. Son todos los archivos de la web:
    con esto ya puede abrir y funcionar entera sin conexión. */
@@ -29,6 +29,7 @@ const ARCHIVOS = [
   './datos.js',
   './dani.js',
   './sonido.js',
+  './fiesta.js',
   './motor-js.js',
   './motor.js',
   './app.js',
@@ -37,6 +38,10 @@ const ARCHIVOS = [
   './minijuegos.js',
   './nube.js',
   './cabecera.jpg',
+  './nunito-400.woff2',
+  './nunito-700.woff2',
+  './nunito-800.woff2',
+  './nunito-900.woff2',
   './icono-192.png',
   './icono-512.png'
 ];

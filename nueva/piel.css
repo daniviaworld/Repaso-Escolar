@@ -75,13 +75,35 @@ body[data-oscuro="si"][data-etapa="infantil"] {
   --tarjeta: var(--noche-crema-tarjeta);
 }
 
+/* ===================================================================
+   LA LETRA
+
+   Nunito, una redonda. La tipografía del sistema es la misma que usan
+   el correo y los ajustes del móvil: correcta y adulta. Esta hace que
+   la app se lea como un cuaderno de niños sin tocar ni una pantalla.
+
+   Los archivos van DENTRO del sitio (nunito-*.woff2, 72 KB entre los
+   cuatro) y no se piden a Google: así la letra sigue estando cuando no
+   hay internet, que es justo lo que arreglamos con el modo sin
+   conexión. Si algún navegador no pudiera cargarlos, cae en la letra
+   del sistema y no pasa nada.
+   =================================================================== */
+@font-face { font-family:'Nunito'; font-style:normal; font-weight:400; font-display:swap;
+             src:url('nunito-400.woff2') format('woff2') }
+@font-face { font-family:'Nunito'; font-style:normal; font-weight:700; font-display:swap;
+             src:url('nunito-700.woff2') format('woff2') }
+@font-face { font-family:'Nunito'; font-style:normal; font-weight:800; font-display:swap;
+             src:url('nunito-800.woff2') format('woff2') }
+@font-face { font-family:'Nunito'; font-style:normal; font-weight:900; font-display:swap;
+             src:url('nunito-900.woff2') format('woff2') }
+
 /* =================================================================== */
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--fondo);
   color: var(--tinta);
   transition: background .2s ease;
@@ -273,3 +295,69 @@ body[data-etapa="infantil"] .reto {
    de desplazamiento horizontal: está comprobado en el navegador.
    =================================================================== */
 body[data-letra="grande"] { zoom: 1.18; }
+
+
+/* ===================================================================
+   EL MOVIMIENTO
+
+   Antes todo aparecía de golpe: pulsabas y la pantalla ya era otra.
+   Para un niño, que las cosas se muevan es la señal de que la app está
+   viva; sin eso, una app bien hecha parece una web de deberes.
+
+   Todo con CSS, sin ninguna librería, y respetando a quien haya pedido
+   en su móvil que no se mueva nada (hay niños a los que el movimiento
+   les marea, y el sistema ya lo sabe).
+   =================================================================== */
+
+button, .cuaderno, .tarjeta-infantil {
+  transition: transform .12s ease, box-shadow .12s ease, background .15s ease;
+}
+button:active, .cuaderno:active, .tarjeta-infantil:active { transform: scale(.96); }
+
+/* La barra de progreso se llena, no salta. */
+.barra > i { transition: width .35s cubic-bezier(.2,.8,.3,1); }
+
+/* La opción correcta da un salto al ponerse verde: cambiar de color sin
+   más no se celebra, y acertar hay que celebrarlo. */
+@keyframes salto {
+  0%   { transform: scale(1) }
+  40%  { transform: scale(1.14) }
+  70%  { transform: scale(.97) }
+  100% { transform: scale(1) }
+}
+.acierta { animation: salto .42s ease-out; }
+
+/* Al fallar, la opción elegida se sacude un poco. Corta, sin regodearse. */
+@keyframes meneo {
+  0%,100% { transform: translateX(0) }
+  25%     { transform: translateX(-5px) }
+  75%     { transform: translateX(5px) }
+}
+.falla { animation: meneo .3s ease-in-out; }
+
+/* Las tarjetas entran de una en una, con un pelo de retraso entre ellas.
+   Es lo que hace que la pantalla parezca que se monta sola delante. */
+@keyframes entra {
+  from { opacity:0; transform: translateY(12px) }
+  to   { opacity:1; transform: none }
+}
+.entra { animation: entra .32s ease-out both; }
+
+/* La estrella que vuela de la pregunta al contador. */
+@keyframes vuela {
+  0%   { transform: translate(0,0) scale(1); opacity:1 }
+  70%  { opacity:1 }
+  100% { transform: translate(var(--dx), var(--dy)) scale(.45); opacity:0 }
+}
+.estrella-vuela {
+  position: fixed; z-index: 90; pointer-events: none; font-size: 30px;
+  animation: vuela .75s cubic-bezier(.3,.1,.5,1) forwards;
+}
+
+/* El contador da un respingo cuando sube. */
+@keyframes respingo { 0%,100% { transform:scale(1) } 45% { transform:scale(1.22) } }
+.sube { animation: respingo .35s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
