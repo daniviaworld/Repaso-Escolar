@@ -105,10 +105,11 @@ body {
   background: var(--fondo);
 }
 .cabecera .logo {
+  /* El icono de verdad, el mismo de Google Play. Antes había un emoji de libros
+     sobre un cuadrado azul: valía de apaño, pero la app y la web se presentaban
+     con dos caras distintas. */
   width: 36px; height: 36px; border-radius: 10px;
-  background: var(--cyan);
-  display: grid; place-items: center;
-  font-size: 20px;
+  object-fit: cover; display: block;
 }
 body[data-etapa="infantil"] .cabecera .logo { width: 42px; height: 42px; }
 .cabecera .marca { flex: 1; }

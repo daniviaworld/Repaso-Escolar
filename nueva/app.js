@@ -299,7 +299,7 @@ function marco(contenido) {
 
   return `
     <div class="cabecera">
-      <div class="logo">📚</div>
+      <img class="logo" src="icono-192.png" alt="Danivia School">
       <div class="marca"><b>DANIVIA SCHOOL</b><small>REPASO ESCOLAR · GVA</small></div>
       <div class="pastilla">⭐ ${estrellas}</div>
     </div>

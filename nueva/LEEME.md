@@ -93,7 +93,7 @@ demás archivos se renuevan solos en la siguiente visita.
 Aun así, cuando cambies **varios archivos a la vez**, cambia también la fecha de esta
 línea de `sw.js`:
 
-    const VERSION = 'danivia-2026-10-29c';
+    const VERSION = 'danivia-2026-10-29d';
 
 Con eso el navegador tira la copia entera y se la vuelve a guardar de golpe, en vez de
 ir archivo por archivo. Es la diferencia entre que la clase vea lo nuevo hoy o mañana.
