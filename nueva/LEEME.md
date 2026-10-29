@@ -134,10 +134,16 @@ pleno desperdiciado.
 **La letra es redonda** (Nunito). La del sistema es la misma que usan el correo y los
 ajustes: correcta y adulta.
 
-**El camino es un camino.** Era una lista de temas uno debajo de otro, y resulta que
-es la pantalla donde el niño elige qué hacer. Ahora es un camino en zigzag con sus
-casillas: la que toca marcada con 📍, las dominadas con su ★ y la ficha del tema
-abriéndose debajo sin cambiar de pantalla.
+**El camino es un tablero.** Era una lista de temas uno debajo de otro, y resulta que
+es la pantalla donde el niño elige qué hacer. Ahora es un tablero con cielo, sol,
+nubes y hierba, y una senda de tierra que serpentea entre las casillas. Cada casilla
+lleva su **aro de progreso** alrededor (sin números: se ve cuánto lleva de cada tema),
+las dominadas van en dorado con ★, las que no ha tocado con el borde discontinuo, y
+la que le toca con un halo que late y su cartel de **TE TOCA**. Al final, la meta.
+
+**Tocar una casilla entra DIRECTO al ejercicio.** Antes abría una ficha y había que
+dar un segundo toque. Un niño no quiere configurar nada: quiere jugar. Cuántas
+preguntas se elige una vez arriba y se recuerda para la próxima.
 
 **Dani sale en el inicio** y dice algo útil: la materia que lleva sin tocar, la racha
 que puede perder hoy, los fallos de ayer. Nunca riñe.
