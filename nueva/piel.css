@@ -106,8 +106,14 @@ body[data-oscuro="si"][data-etapa="infantil"] {
    Son los milisegundos que separan "responde al instante" de "va lento". */
 button, .cuaderno, .tarjeta-infantil, input { touch-action: manipulation; }
 
-/* El desplazamiento, suave y sin que la página entera rebote. */
-.contenido { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+/* OJO CON overscroll-behavior: contain. Estuvo aquí una hora y dejó la web SIN
+   PODER DESPLAZARSE en el móvil.
+   El motivo: .contenido ocupa toda la pantalla pero NO es quien se desplaza —se
+   desplaza la página entera—, y "contain" le dice al navegador justo eso: que el
+   desplazamiento que empiece aquí dentro no pase al padre. Como aquí dentro no
+   hay nada que desplazar y al padre no se le deja pasar, no se mueve nada.
+   Se queda solo el desplazamiento suave, que no cambia el comportamiento. */
+.contenido { -webkit-overflow-scrolling: touch; }
 
 body {
   margin: 0;
