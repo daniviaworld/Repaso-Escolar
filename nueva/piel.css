@@ -101,6 +101,14 @@ body[data-oscuro="si"][data-etapa="infantil"] {
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+/* touch-action: manipulation le dice al navegador que aquí no hay doble toque
+   para ampliar, así que no tiene que esperar a ver si viene un segundo dedo.
+   Son los milisegundos que separan "responde al instante" de "va lento". */
+button, .cuaderno, .tarjeta-infantil, input { touch-action: manipulation; }
+
+/* El desplazamiento, suave y sin que la página entera rebote. */
+.contenido { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+
 body {
   margin: 0;
   font-family: 'Nunito', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -368,14 +376,22 @@ button:active, .cuaderno:active, .tarjeta-infantil:active { transform: scale(.96
   0%,100% { transform: translate(-50%,-50%) scale(1) }
   50%     { transform: translate(-50%,-50%) scale(1.07) }
 }
-/* La casilla donde toca NO cambia de tamaño: late con un halo. Si creciera y
-   menguara, el dedo de un niño (y cualquier prueba automática) perseguiría un
-   botón en movimiento. El halo se ve igual de bien y el botón se queda quieto. */
-@keyframes halo {
-  0%,100% { box-shadow: 0 5px 0 rgba(0,0,0,.18), 0 0 0 0 rgba(18,181,229,.55) }
-  50%     { box-shadow: 0 5px 0 rgba(0,0,0,.18), 0 0 0 12px rgba(18,181,229,0) }
+/* La casilla donde toca NO cambia de tamaño: late un halo detrás. Si la casilla
+   creciera y menguara, el dedo de un niño perseguiría un botón en movimiento.
+
+   El halo se hace con un círculo aparte que crece y se desvanece (transform y
+   opacidad), NO animando la sombra: animar sombras obliga a repintar en cada
+   fotograma y es de las cosas que ponen una web a trompicones en un móvil.
+   Esto lo lleva la tarjeta gráfica y no gasta procesador. */
+@keyframes halo { from { transform:scale(1); opacity:.55 } to { transform:scale(1.55); opacity:0 } }
+.halo {
+  display: block; border-radius: 50%;
+  background: rgba(18,181,229,.45);
+  animation: halo 1.7s ease-out infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
 }
-button.late { animation: halo 1.7s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .halo { display: none } }
 @keyframes latido-pin { 0%,100% { transform: translateX(-50%) translateY(0) } 50% { transform: translateX(-50%) translateY(-4px) } }
 span.late { animation: latido-pin 1.6s ease-in-out infinite; }
 
@@ -394,8 +410,11 @@ span.late { animation: latido-pin 1.6s ease-in-out infinite; }
 
 body[data-etapa="primaria"]:not([data-oscuro="si"]) {
   /* Un cielo con suelo cálido en vez de un gris azulado plano. */
+  /* Sin background-attachment:fixed. En el móvil obliga al navegador a repintar
+     el fondo entero en CADA fotograma del desplazamiento, y es de los motivos
+     clásicos de que una web vaya a trompicones. Como la app no desplaza el body
+     (se desplaza .contenido), el degradado se queda quieto igual. */
   background: linear-gradient(180deg, #E9F3FF 0%, #E1EDFA 42%, #FFF4E0 100%);
-  background-attachment: fixed;
 }
 body[data-etapa="primaria"] .app { background: transparent; }
 
@@ -448,8 +467,7 @@ body[data-oscuro="si"] .tablero {
   background: linear-gradient(180deg, #16263C 0%, #14222F 55%, #162B22 100%);
 }
 
-/* La senda tiene las rayas en movimiento, muy despacio: da sensación de
-   que el camino va hacia algún sitio. */
-@keyframes andar { to { stroke-dashoffset: -48 } }
-.senda { animation: andar 2.6s linear infinite; }
-@media (prefers-reduced-motion: reduce) { .senda { animation: none } }
+/* Las rayas de la senda estaban en movimiento permanente. Quedaba bonito, pero
+   obliga a repintar un SVG del tamaño de la pantalla sesenta veces por segundo
+   mientras el niño ni siquiera toca nada: gasta batería y roba fotogramas al
+   desplazamiento. Quietas se ven igual de bien. */

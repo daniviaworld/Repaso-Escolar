@@ -152,6 +152,39 @@ que puede perder hoy, los fallos de ayer. Nunca riñe.
 para algo que no tiene. Antes estaba escondida en Progreso, siendo la mejor mecánica
 que tiene la app.
 
+## Que vaya suelta en un móvil
+
+Medido en un navegador de verdad con el procesador frenado cuatro veces, que es
+más o menos un móvil modesto. De tocar a ver el cambio:
+
+| | antes | ahora |
+|---|---|---|
+| tocar un cuaderno → se ve el camino | 203 ms | 141 ms |
+| tocar una casilla → se ve la pregunta | — | 50 ms |
+| **responder, la primera vez** | **295 ms** | **37 ms** |
+| responder, las siguientes | 38 ms | 37 ms |
+
+Lo que lo causaba y cómo se arregló:
+
+- **El primer pitido costaba 174 ms.** Crear el motor de sonido del navegador es
+  caro y se hacía en la primera respuesta, justo con el niño esperando. Ahora se
+  prepara en el primer toque que da en la pantalla, sea donde sea.
+- **`background-attachment: fixed`** en el fondo de Primaria. En el móvil obliga a
+  repintar el fondo entero en cada fotograma del desplazamiento. Fuera.
+- **Dos animaciones infinitas** (las rayas de la senda moviéndose y el halo hecho
+  con sombras) repintaban zonas grandes sesenta veces por segundo aunque nadie
+  tocara nada. Las rayas se han quedado quietas y el halo se hace ahora con un
+  círculo que escala y se desvanece, que lo lleva la tarjeta gráfica.
+- **`touch-action: manipulation`** en todo lo que se pulsa: le dice al navegador
+  que aquí no hay doble toque para ampliar, así que no espera a ver si viene un
+  segundo dedo antes de responder.
+- **Las animaciones de entrada se repetían en cada repintado**: tocabas cualquier
+  cosa y las diez tarjetas volvían a entrar una a una. Ahora solo cuando la
+  pantalla cambia de verdad.
+
+Desplazando: 60 fotogramas por segundo en el inicio y en el camino, con el
+procesador frenado cuatro y seis veces, sin tirones.
+
 ## Lo que la app tiene y la web no
 
 - **Recordatorio diario.** Una página web no puede avisar cuando está cerrada sin

@@ -82,7 +82,22 @@ function aplicaPiel() {
   document.body.dataset.letra = estado.letraGrande ? 'grande' : 'normal';
 }
 
+/**
+ * ¿Es la primera vez que se pinta esta pantalla?
+ *
+ * Las tarjetas y las casillas entran con una animación escalonada. Estaba
+ * repitiéndose en CADA repintado: tocabas cualquier cosa y las diez tarjetas
+ * volvían a entrar una a una. Además de marear, es trabajo que el móvil hace
+ * sesenta veces por segundo para nada.
+ */
+let vistaAnterior = '';
+let vistaNueva = true;
+function claseEntra() { return vistaNueva ? 'entra' : ''; }
+
 function pinta() {
+  const clave = [estado.pantalla, estado.pestana, estado.materia, estado.sesion ? 'ses' : ''].join('|');
+  vistaNueva = clave !== vistaAnterior;
+  vistaAnterior = clave;
   aplicaPiel();
   const pantallas = {
     perfiles: pintaPerfiles,
@@ -401,7 +416,7 @@ function pintaPrincipal() {
     const pct = empezada ? Math.round(st.ok * 100 / st.hechas) : 0;
 
     if (infantil) {
-      return `<button class="tarjeta-infantil entra" style="--color:${m.color};--suave:${m.color}2E;${retraso}"
+      return `<button class="tarjeta-infantil ${claseEntra()}" style="--color:${m.color};--suave:${m.color}2E;${retraso}"
                 onclick="abreMateria('${m.id}')">
                 <span class="cuadro">${m.icono}</span>
                 <span class="nombre">${m.nombre}
@@ -411,7 +426,7 @@ function pintaPrincipal() {
                 <span class="flecha">▶</span>
               </button>`;
     }
-    return `<button class="cuaderno entra" style="--color:${m.color};--papel:${m.color}12;--pista:${m.color}26;${retraso}"
+    return `<button class="cuaderno ${claseEntra()}" style="--color:${m.color};--papel:${m.color}12;--pista:${m.color}26;${retraso}"
               onclick="abreMateria('${m.id}')">
               <span class="lomo"><i class="anilla"></i><i class="anilla"></i><i class="anilla"></i></span>
               <span class="hojas">
@@ -576,11 +591,15 @@ function pintaTemas() {
       : 'background:transparent';
 
     return `
+      ${esActual ? `<span class="halo" style="position:absolute;left:${p.x}%;top:${p.y}px;
+           width:${lado + 14}px;height:${lado + 14}px;margin-left:${-(lado + 14) / 2}px;
+           margin-top:${-(lado + 14) / 2}px;z-index:2"></span>` : ''}
       <div style="position:absolute;left:${p.x}%;top:${p.y}px;transform:translate(-50%,-50%);z-index:3;
                   width:${lado + 14}px;height:${lado + 14}px;border-radius:50%;${aro};
-                  display:grid;place-items:center;animation-delay:${i * 45}ms" class="entra">
+                  display:grid;place-items:center;animation-delay:${i * 45}ms"
+           class="${claseEntra()}">
         <button onclick="empiezaQuiz('${m.id}','${t.replace(/'/g, "\\'")}',${estado.tanda})"
-          class="${esActual ? 'late' : ''}" aria-label="${escapaHtml(t)}"
+          aria-label="${escapaHtml(t)}"
           style="width:${lado}px;height:${lado}px;border-radius:50%;cursor:pointer;font:inherit;padding:0;
                  background:${fondo};color:${tinta};font-weight:900;font-size:${infantil ? 27 : 23}px;
                  border:4px ${e.empezado ? 'solid' : 'dashed'} ${e.dominado ? '#E8A700' : color};

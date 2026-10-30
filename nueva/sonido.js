@@ -12,6 +12,21 @@
 
 let _audio = null;
 
+/**
+ * EL PRIMER PITIDO COSTABA 170 MILISEGUNDOS.
+ *
+ * Crear el motor de sonido del navegador es caro, y se hacía en la primera
+ * respuesta: justo en el peor momento, con el niño esperando a ver si ha
+ * acertado. Medido en un móvil modesto: 174 ms la primera vez, 1 ms las demás.
+ *
+ * Se prepara en el primer toque que da en la pantalla, sea donde sea. Tiene que
+ * ser dentro de un toque de verdad porque los navegadores no dejan crear sonido
+ * de otra forma, y para entonces ya no hay nada esperando.
+ */
+try {
+  window.addEventListener('pointerdown', () => { contextoAudio(); }, { once: true, passive: true });
+} catch (e) { /* ni eso puede romper nada */ }
+
 /** El navegador no deja crear sonido hasta que el usuario toca algo; por eso se crea tarde. */
 function contextoAudio() {
   try {
