@@ -57,8 +57,14 @@ function dibujaDani(canvas, { animo = 'tranquilo', cuerpo = DANI_COLORES.cuerpo,
                               gorro = 'ninguno', gafas = false, pulso = 1 } = {}) {
   const dpr = window.devicePixelRatio || 1;
   const lado = canvas.clientWidth || 96;
-  canvas.width = lado * dpr;
-  canvas.height = lado * dpr;
+  // Solo se cambia el tamaño si ha cambiado DE VERDAD. Asignar canvas.width
+  // vuelve a crear el mapa de bits entero y lo borra: hacerlo en cada fotograma,
+  // sesenta veces por segundo y a 3x de densidad, es tirar memoria sin parar.
+  const anchoReal = Math.round(lado * dpr);
+  if (canvas.width !== anchoReal || canvas.height !== anchoReal) {
+    canvas.width = anchoReal;
+    canvas.height = anchoReal;
+  }
   const c = canvas.getContext('2d');
   c.setTransform(dpr, 0, 0, dpr, 0, 0);
   c.clearRect(0, 0, lado, lado);
@@ -184,15 +190,49 @@ function dibujaDani(canvas, { animo = 'tranquilo', cuerpo = DANI_COLORES.cuerpo,
  * Pone a Dani en un canvas y lo deja respirando.
  * Mismo vaivén que la app: lento en reposo, rápido y amplio al celebrar.
  */
+/* Los lienzos que están animándose ahora mismo. */
+const daniVivos = new Set();
+
+/**
+ * LA FUGA QUE PONÍA LA WEB DE RODILLAS. Esto es importante.
+ *
+ * Cada pantalla se pinta volviendo a montar el HTML entero, así que el lienzo de
+ * Dani que había antes DESAPARECE de la página y se crea uno nuevo. Pero el bucle
+ * de animación del viejo seguía corriendo: cancelAnimationFrame solo se llamaba
+ * si el lienzo era el MISMO, y nunca lo era.
+ *
+ * Resultado: cada repintado con Dani dejaba un bucle huérfano dibujando sesenta
+ * veces por segundo sobre un lienzo que ya no está en la pantalla. Medido: a las
+ * 8 preguntas había 9 bucles vivos; a las 40, sesenta y cuatro. Por eso iba cada
+ * vez peor cuanto más rápido se practicaba, y por eso un toque tardaba segundos:
+ * el teléfono estaba dibujando sesenta Danis invisibles.
+ *
+ * El arreglo son dos redes:
+ *   1. El bucle se para solo en cuanto su lienzo ya no está en la página.
+ *   2. Al empezar uno nuevo se cancelan los que hayan quedado sueltos.
+ */
 function animaDani(canvas, opciones = {}) {
+  if (!canvas) return;
+
+  // Red 2: barrer los huérfanos que pudieran quedar.
+  daniVivos.forEach(viejo => {
+    if (viejo !== canvas && !viejo.isConnected) {
+      cancelAnimationFrame(viejo._daniAnim);
+      daniVivos.delete(viejo);
+    }
+  });
+
   const alegre = opciones.animo === 'alegre';
   const duracion = alegre ? 420 : 2200;
   const tope = alegre ? 1.09 : 1.025;
   let inicio = null;
 
   if (canvas._daniAnim) cancelAnimationFrame(canvas._daniAnim);
+  daniVivos.add(canvas);
 
   function paso(t) {
+    // Red 1: si el lienzo ya no está en la página, este bucle sobra.
+    if (!canvas.isConnected) { daniVivos.delete(canvas); return; }
     if (inicio === null) inicio = t;
     const avance = ((t - inicio) % (duracion * 2)) / duracion;
     // Va y vuelve, con la misma curva suave que usa Compose.
@@ -202,4 +242,10 @@ function animaDani(canvas, opciones = {}) {
     canvas._daniAnim = requestAnimationFrame(paso);
   }
   canvas._daniAnim = requestAnimationFrame(paso);
+}
+
+/** Para todas las animaciones de Dani. Se usa al salir de una pantalla. */
+function paraLosDanis() {
+  daniVivos.forEach(c => { cancelAnimationFrame(c._daniAnim); });
+  daniVivos.clear();
 }
