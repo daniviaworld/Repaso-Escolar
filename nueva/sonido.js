@@ -64,6 +64,9 @@ function tocaSecuencia(notas, aunqueEsteApagado) {
       vol.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       osc.connect(vol); vol.connect(ctx.destination);
       osc.start(t); osc.stop(t + dur + 0.01);
+      // Soltarlos al acabar: si no, cada pitido deja dos nodos colgando del
+      // grafo de audio y en una sesión de 25 preguntas son cincuenta.
+      osc.onended = () => { try { osc.disconnect(); vol.disconnect(); } catch (e) {} };
       t += dur + 0.14;
     });
   } catch (e) { /* sin sonido no pasa nada */ }

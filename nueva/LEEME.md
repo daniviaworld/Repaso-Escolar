@@ -32,6 +32,7 @@ que una copia dentro de `nueva/` no la ve nadie.
 | `icono-192.png` / `icono-512.png` | el icono, el mismo de Google Play |
 | `cabecera.jpg` | la imagen de Google Play, que encabeza el diploma |
 | `nunito-*.woff2` | la letra, metida en el propio sitio (72 KB entre las cuatro) |
+| `diagnostico.html` | medidor para un móvil que vaya lento; no se enlaza desde la app |
 
 ## El motor es el mismo que el de la app
 
@@ -184,6 +185,38 @@ Lo que lo causaba y cómo se arregló:
 
 Desplazando: 60 fotogramas por segundo en el inicio y en el camino, con el
 procesador frenado cuatro y seis veces, sin tirones.
+
+## La nube NO se toca mientras el niño responde
+
+Estuvo mal hecho unos días: `guardaTodo()` sincronizaba con Firestore, y
+`guardaTodo()` se llama en CADA respuesta. Tenía un freno de 8 segundos, pero 8
+segundos es lo que tarda un niño en contestar dos o tres preguntas: o sea que a
+partir de la tercera empezaba a escribir en la nube en mitad de la sesión. En un
+ordenador con fibra no se nota; en un móvil con mala cobertura, cada escritura se
+come el hilo principal y el botón tarda en marcarse.
+
+La app de Android nunca hizo eso: sincroniza al TERMINAR la sesión (ver
+`finishQuiz` en `GameViewModel.kt`). Ahora la web hace lo mismo: al acabar una
+sesión, al crear un alumno, al cambiar de alumno y al cambiar de curso. Y la
+prueba `prueba-nube.js` comprueba que responder cinco preguntas seguidas no
+escribe ni una vez.
+
+## Primero se marca, después se trabaja
+
+Al responder se hacía todo de golpe —apuntar, guardar, repintar la pantalla— y el
+color de la respuesta se veía AL FINAL. Si algo de eso costaba, el niño miraba un
+botón que no reaccionaba y volvía a tocar.
+
+Ahora el botón se pinta al instante, a mano, y el resto se hace en el fotograma
+siguiente. El trabajo es el mismo; lo que cambia es que ya no se ve.
+
+## Si un móvil va lento: diagnostico.html
+
+Se abre `…/nueva/diagnostico.html` EN ESE MÓVIL y se pulsa Medir. Hace el mismo
+trabajo que la web al responder una pregunta y cronometra cada paso en ese
+aparato: generar la pregunta, montar la pantalla, guardar, dibujar a Dani, el
+sonido, los fotogramas por segundo y el peor parón. Más el modelo de pantalla,
+los núcleos, la memoria y el tipo de conexión. No toca el progreso de nadie.
 
 ## Lo que la app tiene y la web no
 

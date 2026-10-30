@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Danivia School · Medidor</title>
+<!--
+  MEDIDOR PARA EL MÓVIL QUE VA LENTO.
+
+  No es parte de la app: es una página suelta que hace EXACTAMENTE el mismo
+  trabajo que la web al responder una pregunta, y cronometra cada paso en el
+  teléfono donde pasa el problema. Aquí, en mi ordenador, todo va rápido; lo que
+  hace falta es saber qué es lento ALLÍ.
+
+  Se abre en el móvil, se pulsa Medir y se manda una foto del resultado.
+  No guarda nada, no toca el progreso del niño y no escribe en la nube.
+-->
+<link rel="stylesheet" href="piel.css">
+<style>
+  body { margin:0; font-family:'Nunito',system-ui,sans-serif; background:#E1EDFA; color:#0B2A4A; }
+  .caja { max-width:430px; margin:0 auto; padding:18px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  p.sub { margin:0 0 16px; font-size:13px; color:#44607d; line-height:1.5 }
+  button#medir { width:100%; padding:18px; border:none; border-radius:18px; background:#12B5E5;
+                 color:#fff; font:inherit; font-weight:900; font-size:18px; cursor:pointer;
+                 box-shadow:0 4px 0 #0E93B8 }
+  table { width:100%; border-collapse:collapse; margin-top:18px; font-size:14px }
+  td { padding:9px 6px; border-bottom:1px solid #cfe0f2 }
+  td.v { text-align:right; font-weight:900; white-space:nowrap }
+  .bien { color:#2BA873 } .regular { color:#C98F00 } .mal { color:#D93B3B }
+  .datos { margin-top:16px; font-size:11.5px; color:#44607d; line-height:1.6; word-break:break-word }
+  canvas { display:none }
+</style>
+</head>
+<body>
+<div class="caja">
+  <h1>Medidor de Danivia School</h1>
+  <p class="sub">Hace el mismo trabajo que la web al responder una pregunta y mide cuánto tarda
+     <b>en este teléfono</b>. Tarda unos segundos. No toca el progreso de nadie.</p>
+  <button id="medir">Medir</button>
+  <table id="tabla"></table>
+  <div class="datos" id="datos"></div>
+  <canvas id="lienzo" width="180" height="180"></canvas>
+</div>
+
+<script src="datos.js"></script>
+<script src="dani.js"></script>
+<script src="sonido.js"></script>
+<script src="motor-js.js"></script>
+<script src="motor.js"></script>
+<script>
+/* El medidor necesita estos dos de la app, pero sin cargar la app entera. */
+const estado = { sonido:true, vibrar:true, letraGrande:false, oscuro:false };
+function alumnoActual() { return { id:'medidor', curso:'p4', estrellas:0, nombre:'Medidor' }; }
+
+const fila = (nombre, valor, clase) =>
+  `<tr><td>${nombre}</td><td class="v ${clase||''}">${valor}</td></tr>`;
+
+const juzga = (ms, bien, regular) =>
+  ms <= bien ? 'bien' : ms <= regular ? 'regular' : 'mal';
+
+function mide(veces, f) {
+  const t = performance.now();
+  for (let i = 0; i < veces; i++) f(i);
+  return (performance.now() - t) / veces;
+}
+
+document.getElementById('medir').onclick = async () => {
+  const t = document.getElementById('tabla');
+  t.innerHTML = fila('Midiendo…', '');
+  await new Promise(r => setTimeout(r, 60));
+  const r = [];
+
+  // 1. El motor: generar preguntas
+  const genera = mide(20, () => generaPregunta('mates', 'p4', null));
+  r.push(['Generar una pregunta', genera, 3, 12]);
+
+  // 2. Montar la pantalla de la pregunta (crear HTML de golpe, como hace la app)
+  const caja = document.createElement('div');
+  caja.style.cssText = 'position:absolute;left:-9999px;width:412px';
+  document.body.appendChild(caja);
+  const q = generaPregunta('mates', 'p4', null);
+  const pintar = mide(20, () => {
+    caja.innerHTML = `<div style="background:#fff;border-radius:22px;padding:22px;box-shadow:0 2px 6px rgba(0,0,0,.12)">
+      <div style="font-size:24px;font-weight:700">${q.texto}</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px">
+      ${(q.opciones||['a','b','c','d']).map(o=>`<button style="padding:12px;border-radius:18px;min-height:68px;
+        box-shadow:0 1px 4px rgba(0,0,0,.1)">${o}</button>`).join('')}</div>`;
+    caja.offsetHeight;   // obliga a calcular la distribución, como al pintar de verdad
+  });
+  r.push(['Montar la pantalla', pintar, 10, 35]);
+
+  // 3. Guardar el progreso (lo que hace en cada respuesta)
+  const bulto = JSON.stringify(Array.from({length:40}, (_,i)=>({ pregunta:q, curso:'p4', cuando:Date.now()-i })));
+  const guardar = mide(20, () => { try { localStorage.setItem('danivia_medidor', bulto); } catch(e){} });
+  try { localStorage.removeItem('danivia_medidor'); } catch(e){}
+  r.push(['Guardar el progreso', guardar, 5, 20]);
+
+  // 4. Dibujar a Dani
+  const dani = mide(20, () => dibujaDani(document.getElementById('lienzo'), { animo:'alegre' }));
+  r.push(['Dibujar a Dani', dani, 6, 20]);
+
+  // 5. El sonido: crearlo y pitar
+  const t0 = performance.now(); contextoAudio(); const crearAudio = performance.now() - t0;
+  r.push(['Preparar el sonido (una vez)', crearAudio, 30, 120]);
+  const pitar = mide(10, () => pita(true));
+  r.push(['Un pitido', pitar, 4, 15]);
+
+  // 6. Fluidez: fotogramas por segundo durante 1,5 s
+  const fps = await new Promise(res => {
+    let f = 0, peor = 0, ultimo = performance.now(); const ini = ultimo;
+    (function paso(){ const a = performance.now(); peor = Math.max(peor, a - ultimo); ultimo = a; f++;
+      if (a - ini < 1500) requestAnimationFrame(paso);
+      else res({ fps: Math.round(f / ((a - ini) / 1000)), peor: Math.round(peor) }); })();
+  });
+
+  caja.remove();
+  const total = genera + pintar + guardar + dani + pitar;
+
+  t.innerHTML =
+    r.map(([n, ms, bien, reg]) => fila(n, ms.toFixed(1) + ' ms', juzga(ms, bien, reg))).join('') +
+    fila('<b>Una respuesta entera</b>', '<b>' + total.toFixed(0) + ' ms</b>', juzga(total, 30, 90)) +
+    fila('Fotogramas por segundo', fps.fps, fps.fps >= 50 ? 'bien' : fps.fps >= 35 ? 'regular' : 'mal') +
+    fila('Peor parón', fps.peor + ' ms', juzga(fps.peor, 40, 120));
+
+  let mem = '';
+  try { if (performance.memory) mem = ' · memoria usada: ' +
+        Math.round(performance.memory.usedJSHeapSize/1048576) + ' MB de ' +
+        Math.round(performance.memory.jsHeapSizeLimit/1048576) + ' MB'; } catch(e){}
+  let gastaPila = '';
+  try { if (navigator.getBattery) { const b = await navigator.getBattery();
+        gastaPila = ' · batería: ' + Math.round(b.level*100) + '%' + (b.charging?' (cargando)':''); } } catch(e){}
+
+  document.getElementById('datos').innerHTML =
+    'Pantalla: ' + innerWidth + '×' + innerHeight + ' a ' + (window.devicePixelRatio||1) + 'x · ' +
+    'núcleos: ' + (navigator.hardwareConcurrency || '?') +
+    (navigator.deviceMemory ? ' · RAM: ' + navigator.deviceMemory + ' GB' : '') + mem + gastaPila +
+    '<br>Conexión: ' + ((navigator.connection && navigator.connection.effectiveType) || 'desconocida') +
+    (navigator.connection && navigator.connection.saveData ? ' (ahorro de datos ACTIVADO)' : '') +
+    '<br>Motor de preguntas: ' + (typeof motorDanivia !== 'undefined' ? 'cargado' : 'NO CARGADO') +
+    '<br>' + navigator.userAgent;
+};
+</script>
+</body>
+</html>

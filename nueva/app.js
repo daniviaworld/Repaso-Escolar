@@ -37,8 +37,21 @@ function alumnoActual() { return estado.alumnos.find(a => a.id === estado.actual
 function guardaTodo() {
   almacen.guardar('alumnos', estado.alumnos);
   almacen.guardar('actual', estado.actual);
-  // El espejo para el panel de control. Va con freno de 8 segundos dentro,
-  // así que se puede llamar en cada respuesta sin saturar nada.
+}
+
+/**
+ * MANDAR EL ESPEJO AL PANEL, PERO NO MIENTRAS EL NIÑO RESPONDE.
+ *
+ * Esto estaba dentro de guardaTodo(), o sea que se llamaba en CADA respuesta.
+ * Tenía un freno de 8 segundos, así que no escribía siempre... pero sí cada dos
+ * o tres preguntas, que es justo el ritmo al que se contesta. Y una escritura de
+ * Firestore no es gratis: el navegador abre su base de datos interna, serializa y
+ * sale a la red. Todo eso, en medio de la sesión, con el niño tocando.
+ *
+ * La app de Android nunca hizo eso: sincroniza al TERMINAR la sesión
+ * (ver finishQuiz en GameViewModel.kt). Ahora la web hace lo mismo.
+ */
+function sincronizaSiProcede() {
   if (typeof sincronizaNube === 'function') sincronizaNube(alumnoActual());
 }
 
@@ -295,11 +308,14 @@ function creaAlumno() {
     daniColor: 'color_azul', daniGorro: '', daniGafas: false, comprados: []
   };
   estado.alumnos.push(a); estado.actual = a.id;
-  olvidarRecientes(); guardaTodo();
+  olvidarRecientes(); guardaTodo(); sincronizaSiProcede();
   estado.pantalla = 'principal'; pinta();
 }
 
-function eligeAlumno(id) { estado.actual = id; olvidarRecientes(); guardaTodo(); estado.pantalla = 'principal'; pinta(); }
+function eligeAlumno(id) {
+  estado.actual = id; olvidarRecientes(); guardaTodo(); sincronizaSiProcede();
+  estado.pantalla = 'principal'; pinta();
+}
 
 
 /**
@@ -515,7 +531,7 @@ function eligeCursoDeAlumno(nuevo) {
     delete a.porCurso[nuevo];
     a.curso = nuevo;
     olvidarRecientes();   // las preguntas vistas en el otro curso no cuentan aquí
-    guardaTodo();
+    guardaTodo(); sincronizaSiProcede();
   }
   estado.pantalla = 'principal'; pinta();
 }
@@ -889,24 +905,49 @@ function respondeEscrito() {
   responde(escrito, respuestaEscritaVale(escrito, pregunta.respuesta, pregunta), c);
 }
 
+/**
+ * RESPONDER.
+ *
+ * EL ORDEN IMPORTA, y es lo que arregla que "las pulsaciones tarden en marcarse".
+ *
+ * Antes se hacía todo de golpe —apuntar la respuesta, guardar, repintar la
+ * pantalla entera— y SOLO AL FINAL se veía el color. Si algo de eso costaba
+ * (guardar, el sonido, repintar), el niño se quedaba mirando un botón que no
+ * reaccionaba y volvía a tocar.
+ *
+ * Ahora: primero se PINTA el botón que ha tocado, al instante y a mano, y todo
+ * lo demás se hace en el fotograma siguiente. El color ya está en pantalla
+ * antes de que empiece el trabajo. Son los mismos milisegundos de trabajo, pero
+ * el niño no los ve.
+ */
 function responde(dada, acierto, desde) {
   const s = estado.sesion;
   if (s.bloqueada) return;
   const q = s.preguntas[s.indice];
-  // Dónde estaba lo que ha tocado, ANTES de repintar: después ya no existe.
+
+  // Estado de la sesión: al instante, para que un segundo toque no cuente.
   const origen = desde ? desde.getBoundingClientRect() : null;
   s.bloqueada = true; s.dada = dada; s.acierto = acierto;
   s.racha = acierto ? s.racha + 1 : 0;
   if (acierto) s.aciertos++;
-  pita(acierto); vibra(acierto);
-  registraRespuesta(alumnoActual(), q.materia, q.tema, acierto);
-  apuntaFallo(alumnoActual(), q, acierto, !!s.esRepasoFallos);
-  guardaTodo();
-  pinta();
-  // La estrella viaja al contador. Es lo que hace que acertar se note.
-  if (acierto && origen) {
-    estrellaQueVuela({ getBoundingClientRect: () => origen });
+
+  // 1) LA REACCIÓN, YA: color, sonido y vibración.
+  if (desde && desde.style) {
+    desde.style.background = acierto ? '#3DDC97' : '#FF6B6B';
+    desde.style.color = '#fff';
+    desde.style.borderColor = acierto ? '#3DDC97' : '#FF6B6B';
+    desde.classList.add(acierto ? 'acierta' : 'falla');
   }
+  pita(acierto); vibra(acierto);
+
+  // 2) El trabajo, en el fotograma siguiente.
+  requestAnimationFrame(() => {
+    registraRespuesta(alumnoActual(), q.materia, q.tema, acierto);
+    apuntaFallo(alumnoActual(), q, acierto, !!s.esRepasoFallos);
+    guardaTodo();
+    pinta();
+    if (acierto && origen) estrellaQueVuela({ getBoundingClientRect: () => origen });
+  });
 
   // Al acertar pasa sola, igual que en la app: en una sesión de 25, son
   // 25 toques que no deciden nada.
@@ -982,6 +1023,7 @@ function pintaMarcador() {
     // dentro del navegador y acaba ocupando más que todo lo demás junto.
     while (a.historial.length > 30) a.historial.pop();
     guardaTodo();
+    sincronizaSiProcede();     // aquí sí: la sesión ha terminado, no hay nadie esperando
   }
 
   const r = 85, circ = 2 * Math.PI * r;
