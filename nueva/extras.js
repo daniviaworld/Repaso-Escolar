@@ -227,6 +227,8 @@ function pintaProgreso() {
       <span style="font-size:26px;color:var(--tinta-suave)">›</span>
     </button>
 
+    ${typeof tarjetaDiario === 'function' ? tarjetaDiario(a) : ''}
+
     <div style="display:flex;gap:8px;margin:14px 0 22px">
       ${cifra('⭐', a.estrellasTotal, 'Ganadas', '#FFC93C')}
       ${cifra('🔥', racha(a), 'Racha', '#FF6B6B')}

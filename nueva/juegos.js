@@ -67,8 +67,16 @@ function cierraJuego() {
   // Cortar cualquier reloj del juego que se deja: si no, sigue corriendo por
   // detrás aunque el niño ya esté en otra pantalla.
   if (J && J.reloj) { clearInterval(J.reloj); J.reloj = null; }
+  const a = alumnoActual();
+  // Al diario solo va el juego que se ha TERMINADO de verdad. Abrir uno, mirarlo
+  // y cerrarlo no es haber jugado, y en un diario que ven las familias eso sería
+  // mentir. Todos los juegos marcan J.fase='fin' al acabar.
+  if (J && J.fase === 'fin' && typeof diarioApuntaJuego === 'function') {
+    const j = JUEGOS.find(x => x.id === juegoActivo);
+    diarioApuntaJuego(a, j && j.nombre);
+  }
   juegoActivo = null;
-  const a = alumnoActual(); a.juegos = (a.juegos || 0) + 1; guardaTodo();
+  a.juegos = (a.juegos || 0) + 1; guardaTodo();
   pinta();
 }
 

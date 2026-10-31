@@ -120,7 +120,8 @@ function pinta() {
     temas: pintaTemas,
     quiz: pintaQuiz,
     resultado: pintaResultado,
-    tienda: pintaTienda
+    tienda: pintaTienda,
+    diario: pintaDiario
   };
   (pantallas[estado.pantalla] || pintaPerfiles)();
 }
@@ -1018,7 +1019,10 @@ function pintaMarcador() {
     s.cobrada = true;
     a.estrellas += ganadas; a.estrellasTotal += ganadas;
     const mat = s.mezcla ? null : materiasDe(cursoPorId(a.curso)).find(x => x.id === s.materiaId);
-    a.historial.unshift({ d: Date.now(), s: mat ? mat.nombre : 'Repaso mezclado', ok, n });
+    const nombreMateria = mat ? mat.nombre : 'Repaso mezclado';
+    a.historial.unshift({ d: Date.now(), s: nombreMateria, ok, n });
+    // Y al diario, que lleva la cuenta por DÍA y no por sesión (ver diario.js).
+    if (typeof diarioApuntaSesion === 'function') diarioApuntaSesion(a, nombreMateria, ok, n);
     // Las últimas 30, igual que la app. Sin tope, el historial crece para siempre
     // dentro del navegador y acaba ocupando más que todo lo demás junto.
     while (a.historial.length > 30) a.historial.pop();
