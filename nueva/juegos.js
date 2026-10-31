@@ -14,7 +14,8 @@ const JUEGOS = [
   { id:'ahorcado',     nombre:'Adivina la palabra',     ico:'🔤', desc:'Con pista y dibujo',             color:'#FF9F68' },
   { id:'raya',         nombre:'Tres en raya',           ico:'⭕', desc:'Juega contra la app',            color:'#FF6B6B' },
   { id:'topos',        nombre:'Topos rápidos',          ico:'🐹', desc:'Toca el resultado correcto',     color:'#8D6E63' },
-  { id:'secuencia',    nombre:'¿Qué viene después?',    ico:'➡️', desc:'Completa la serie',              color:'#FFC93C' }
+  { id:'secuencia',    nombre:'¿Qué viene después?',    ico:'➡️', desc:'Completa la serie',              color:'#FFC93C' },
+  { id:'sudoku',       nombre:'Sudoku',                 ico:'🔢', desc:'Lógica pura, sin repetir',       color:'#26C6DA' }
 ];
 
 /** Texto oscuro sobre colores claros y blanco sobre los oscuros, calculado del color. */
@@ -53,13 +54,16 @@ function pintaJuegos() {
 
   app().innerHTML = marco(`
     <h2 class="titulo-seccion">${infantil ? '¡A jugar!' : 'Zona de juegos'}</h2>
-    <p class="subtitulo">${infantil ? 'Elige uno' : 'Diez juegos para descansar de las preguntas'}</p>
+    <p class="subtitulo">${infantil ? 'Elige uno' : 'Once juegos para descansar de las preguntas'}</p>
     <div style="display:grid;grid-template-columns:${infantil ? '1fr' : '1fr 1fr'};gap:12px">${fichas}</div>
     <div style="height:20px"></div>`);
 }
 
 function abreJuego(id) { juegoActivo = id; pinta(); }
 function cierraJuego() {
+  // Cortar cualquier reloj del juego que se deja: si no, sigue corriendo por
+  // detrás aunque el niño ya esté en otra pantalla.
+  if (J && J.reloj) { clearInterval(J.reloj); J.reloj = null; }
   juegoActivo = null;
   const a = alumnoActual(); a.juegos = (a.juegos || 0) + 1; guardaTodo();
   pinta();
@@ -90,7 +94,8 @@ function pintaJuego(id) {
   const fn = {
     contrarreloj: juegoContrarreloj, puzle: juegoPuzle, dif: juegoDiferente,
     sopa: juegoSopa, laberinto: juegoLaberinto, pintar: juegoPintar,
-    ahorcado: juegoAhorcado, raya: juegoRaya, topos: juegoTopos, secuencia: juegoSecuencia
+    ahorcado: juegoAhorcado, raya: juegoRaya, topos: juegoTopos, secuencia: juegoSecuencia,
+    sudoku: juegoSudoku
   }[id];
   fn();
 }
