@@ -1,5 +1,5 @@
 /* ===================================================================
-   ZONA DE JUEGOS — los trece de la app.
+   ZONA DE JUEGOS — los catorce de la app.
    Traducción de ui/screens/GamesScreen.kt: mismos juegos, mismos
    colores, misma dificultad por edad y el mismo marco de cabecera.
    =================================================================== */
@@ -17,7 +17,8 @@ const JUEGOS = [
   { id:'secuencia',    nombre:'¿Qué viene después?',    ico:'➡️', desc:'Completa la serie',              color:'#FFC93C' },
   { id:'sudoku',       nombre:'Sudoku',                 ico:'🔢', desc:'Lógica pura, sin repetir',       color:'#26C6DA' },
   { id:'nonograma',    nombre:'Dibujo escondido',       ico:'🖼️', desc:'Píntalo con los números',        color:'#5C6BC0' },
-  { id:'carrera',      nombre:'Carrera de cálculo',     ico:'🏁', desc:'Dos jugadores a la vez',         color:'#00897B' }
+  { id:'carrera',      nombre:'Carrera de cálculo',     ico:'🏁', desc:'Dos jugadores a la vez',         color:'#00897B' },
+  { id:'flechas',      nombre:'Flechas',                ico:'🎯', desc:'60 niveles de lógica',           color:'#7E57C2' }
 ];
 
 /** Texto oscuro sobre colores claros y blanco sobre los oscuros, calculado del color. */
@@ -56,7 +57,7 @@ function pintaJuegos() {
 
   app().innerHTML = marco(`
     <h2 class="titulo-seccion">${infantil ? '¡A jugar!' : 'Zona de juegos'}</h2>
-    <p class="subtitulo">${infantil ? 'Elige uno' : 'Trece juegos para descansar de las preguntas'}</p>
+    <p class="subtitulo">${infantil ? 'Elige uno' : 'Catorce juegos para descansar de las preguntas'}</p>
     <div style="display:grid;grid-template-columns:${infantil ? '1fr' : '1fr 1fr'};gap:12px">${fichas}</div>
     <div style="height:20px"></div>`);
 }
@@ -101,7 +102,8 @@ const FUNCION_DE_JUEGO = {
   contrarreloj:'juegoContrarreloj', puzle:'juegoPuzle', dif:'juegoDiferente',
   sopa:'juegoSopa', laberinto:'juegoLaberinto', pintar:'juegoPintar',
   ahorcado:'juegoAhorcado', raya:'juegoRaya', topos:'juegoTopos', secuencia:'juegoSecuencia',
-  sudoku:'juegoSudoku', nonograma:'juegoNonograma', carrera:'juegoCarrera'
+  sudoku:'juegoSudoku', nonograma:'juegoNonograma', carrera:'juegoCarrera',
+  flechas:'juegoFlechas'
 };
 
 function pintaJuego(id) {
