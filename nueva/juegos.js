@@ -1,5 +1,5 @@
 /* ===================================================================
-   ZONA DE JUEGOS — los diez de la app.
+   ZONA DE JUEGOS — los trece de la app.
    Traducción de ui/screens/GamesScreen.kt: mismos juegos, mismos
    colores, misma dificultad por edad y el mismo marco de cabecera.
    =================================================================== */
@@ -15,7 +15,9 @@ const JUEGOS = [
   { id:'raya',         nombre:'Tres en raya',           ico:'⭕', desc:'Juega contra la app',            color:'#FF6B6B' },
   { id:'topos',        nombre:'Topos rápidos',          ico:'🐹', desc:'Toca el resultado correcto',     color:'#8D6E63' },
   { id:'secuencia',    nombre:'¿Qué viene después?',    ico:'➡️', desc:'Completa la serie',              color:'#FFC93C' },
-  { id:'sudoku',       nombre:'Sudoku',                 ico:'🔢', desc:'Lógica pura, sin repetir',       color:'#26C6DA' }
+  { id:'sudoku',       nombre:'Sudoku',                 ico:'🔢', desc:'Lógica pura, sin repetir',       color:'#26C6DA' },
+  { id:'nonograma',    nombre:'Dibujo escondido',       ico:'🖼️', desc:'Píntalo con los números',        color:'#5C6BC0' },
+  { id:'carrera',      nombre:'Carrera de cálculo',     ico:'🏁', desc:'Dos jugadores a la vez',         color:'#00897B' }
 ];
 
 /** Texto oscuro sobre colores claros y blanco sobre los oscuros, calculado del color. */
@@ -54,7 +56,7 @@ function pintaJuegos() {
 
   app().innerHTML = marco(`
     <h2 class="titulo-seccion">${infantil ? '¡A jugar!' : 'Zona de juegos'}</h2>
-    <p class="subtitulo">${infantil ? 'Elige uno' : 'Once juegos para descansar de las preguntas'}</p>
+    <p class="subtitulo">${infantil ? 'Elige uno' : 'Trece juegos para descansar de las preguntas'}</p>
     <div style="display:grid;grid-template-columns:${infantil ? '1fr' : '1fr 1fr'};gap:12px">${fichas}</div>
     <div style="height:20px"></div>`);
 }
@@ -90,13 +92,36 @@ function marcoJuego(id, titulo, marcador, ayuda, cuerpo) {
     </div>`;
 }
 
+/* Qué función pinta cada juego. Se guarda el NOMBRE, no la función: así, si un
+   archivo no llegó a cargarse (una subida a medias, la caché del móvil a medio
+   renovar), se cae ese juego solo y no la pestaña entera. Con las funciones
+   puestas directamente, un solo archivo que falte deja a toda la clase sin
+   Juegos, y eso ya pasó una vez. */
+const FUNCION_DE_JUEGO = {
+  contrarreloj:'juegoContrarreloj', puzle:'juegoPuzle', dif:'juegoDiferente',
+  sopa:'juegoSopa', laberinto:'juegoLaberinto', pintar:'juegoPintar',
+  ahorcado:'juegoAhorcado', raya:'juegoRaya', topos:'juegoTopos', secuencia:'juegoSecuencia',
+  sudoku:'juegoSudoku', nonograma:'juegoNonograma', carrera:'juegoCarrera'
+};
+
 function pintaJuego(id) {
-  const fn = {
-    contrarreloj: juegoContrarreloj, puzle: juegoPuzle, dif: juegoDiferente,
-    sopa: juegoSopa, laberinto: juegoLaberinto, pintar: juegoPintar,
-    ahorcado: juegoAhorcado, raya: juegoRaya, topos: juegoTopos, secuencia: juegoSecuencia,
-    sudoku: juegoSudoku
-  }[id];
+  const fn = globalThis[FUNCION_DE_JUEGO[id]];
+  if (typeof fn !== 'function') {
+    const j = JUEGOS.find(x => x.id === id) || { nombre:'Juego' };
+    app().innerHTML = marcoJuego(id, j.nombre, null, null, `
+      <div style="flex:1;display:grid;place-items:center;text-align:center">
+        <div>
+          <div style="font-size:54px">🔌</div>
+          <strong style="font-size:18px">Este juego no se ha cargado bien</strong>
+          <p style="font-size:14px;opacity:.65;margin:8px 0 0">
+            Cierra la web y vuelve a abrirla con internet.</p>
+          <button onclick="cierraJuego()" style="margin-top:20px;background:var(--tarjeta);
+                  color:var(--tinta);border:none;border-radius:16px;padding:14px 24px;
+                  cursor:pointer;font:inherit;font-weight:800">Volver a los juegos</button>
+        </div>
+      </div>`);
+    return;
+  }
   fn();
 }
 
